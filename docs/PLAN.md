@@ -75,3 +75,7 @@ Nenhuma até aqui. O que ficou sem resposta está em Perguntas em aberto.
 ## 11. Registro de problemas descobertos
 
 > Somente acréscimos. Formato: AAAA-MM-DD, contexto, ticket relacionado.
+
+- 2026-11-04, revisão do Codex, sem ticket ainda. Sintoma: vaga júnior que pede 5 anos caía em Encaixa quando a duplicata sem descrição vinha primeiro. Causa: a deduplicação não copiava a descrição. Correção: mantém a descrição mais longa.
+- 2026-11-04, revisão do Codex, sem ticket ainda. Sintoma: "1 ano com SQL e 5 anos com Python" contava 1 ano. Causa: `anos_pedidos` usava o menor valor entre todos os requisitos. Correção: usa o maior, e o início de cada faixa continua valendo.
+- 2026-11-04, revisão do Codex, sem ticket ainda. Sintoma: vaga híbrida fora da região passava por citar "trabalho remoto". Causa: a descrição não era checada quanto a híbrido ou presencial. Correção: `descricao_remota` exige a ausência desses termos.
