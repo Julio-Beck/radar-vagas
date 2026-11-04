@@ -1,0 +1,7 @@
+# docs/ também é a pasta publicada pelo GitHub Pages.
+# Isto mantém a documentação do projeto fora do site.
+exclude:
+  - checklists
+  - design
+  - PLAN.md
+  - novo-projeto.md

@@ -10,7 +10,10 @@ Busca vagas de estágio e júnior em TI no Indeed, LinkedIn, Glassdoor, Gupy, em
 | `template.html` | O visual da página. |
 | `requirements.txt` | Bibliotecas Python. |
 | `.github/workflows/vagas.yml` | O agendamento no GitHub Actions. |
-| `docs/` | Criada automaticamente: a página publicada e o histórico de vagas já vistas. |
+| `docs/` | A página publicada e o histórico de vagas já vistas (gerados), mais a documentação do projeto (fora do site). |
+| `tests/` | Testes das regras. Rode com `python -B -m unittest discover -s tests`. |
+| `AGENTS.md`, `CLAUDE.md`, `.claude/` | Regras e ferramentas para agentes de IA, vindas do `modelo-projeto`. |
+| `.github/workflows/ci.yml` | Verificações de cada pull request: segredos, análise estática e testes. |
 
 ## Configurar pelo celular (uma vez só)
 
