@@ -40,12 +40,17 @@ Abra `vagas.py` no GitHub, toque no lápis e mexa só no bloco **CONFIGURAÇÃO*
 ## Como a classificação funciona
 
 - **Encaixa:** o título tem nível de entrada (estágio, júnior, trainee...) **e** área de TI.
-- **Talvez:** é de TI, mas o título não diz o nível, ou a vaga pede mais de 2 anos de experiência.
-- **Fora:** nível acima (pleno, sênior, liderança) ou fora de TI.
+- **Talvez:** é de TI, mas o título não diz o nível, cita júnior junto com um nível acima ("Júnior/Pleno"), ou a vaga pede mais de 2 anos de experiência.
+- **Fora:** nível acima (pleno, sênior, N2/N3, liderança) ou fora de TI. Expressões como "redes sociais" ou "desenvolvimento de negócios" não contam como TI (lista `TITULO_NAO_TI`).
 - **Nova:** apareceu pela primeira vez nas últimas 24 horas.
 
 ## Problemas comuns
 
 - **LinkedIn ou Glassdoor "bloqueado nesta rodada":** esses sites barram servidores de nuvem às vezes. É normal; nas outras rodadas costuma voltar.
+- **Fonte com "nada encontrado":** a busca rodou sem erro e não trouxe nada. Se durar várias rodadas, a fonte provavelmente parou de funcionar.
+- **Gupy com "bloqueado (HTTP 404)":** a Gupy não tem API de busca documentada e já trocou o endereço uma vez. Ele fica em `GUPY_URL`, no `vagas.py`.
+- **Vagas remotas do LinkedIn:** só entram se o título ou o local disserem que são remotas, porque a busca não traz a descrição.
+- **Página com "busca atrasada":** passaram mais de 16 horas sem atualizar. Veja a aba **Actions**. O GitHub pode atrasar ou pular agendamentos.
+- **Workflow falhou com "Nenhuma vaga nesta rodada":** todas as fontes falharam, e a página anterior continua no ar.
 - **Erro de permissão no passo "Publicar a página":** refaça o passo 4.
 - **Testar o visual sem buscar nada:** `python vagas.py --demo` gera `demo/index.html` com vagas de exemplo.

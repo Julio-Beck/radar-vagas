@@ -52,6 +52,7 @@
   header { padding: 28px 0 16px; }
   h1 { font-size: 28px; line-height: 1.1; font-weight: 750; letter-spacing: -0.02em; }
   .sub { margin-top: 6px; color: var(--muted); font-family: var(--mono); font-size: 12px; }
+  .sub.atrasada { color: var(--maybe); }
   .busca {
     display: block; width: 100%; margin-top: 16px; padding: 12px 14px;
     font: inherit; color: var(--text); background: var(--surface);
@@ -169,14 +170,19 @@ function textoAtualizado(iso) {
   return `Atualizado ${dia} às ${hora} · ${DADOS.vagas.length} vagas`;
 }
 
+const fonteOk = f => /^\d+ encontradas/.test(f.status) && !/problema/.test(f.status);
+
 function cabecalho() {
-  $("#atualizado").textContent = textoAtualizado(DADOS.atualizado);
-  const ruins = DADOS.fontes.filter(f => !/encontrad/.test(f.status));
+  // a maior pausa normal entre buscas é de 12h (18h17 às 6h17)
+  const atrasada = Date.now() - new Date(DADOS.atualizado) > 16 * 36e5;
+  $("#atualizado").textContent = textoAtualizado(DADOS.atualizado) + (atrasada ? " · busca atrasada" : "");
+  $("#atualizado").classList.toggle("atrasada", atrasada);
+  const ruins = DADOS.fontes.filter(f => !fonteOk(f));
   $("#fontes summary").textContent = ruins.length
     ? `Fontes: ${DADOS.fontes.length - ruins.length} ok, ${ruins.length} com problema`
     : `Fontes: todas ok`;
   $("#fontes ul").innerHTML = DADOS.fontes.map(f =>
-    `<li class="${/encontrad/.test(f.status) ? "" : "ruim"}">${esc(f.nome)}: ${esc(f.status)}</li>`).join("");
+    `<li class="${fonteOk(f) ? "" : "ruim"}">${esc(f.nome)}: ${esc(f.status)}</li>`).join("");
 }
 
 function filtradas() {

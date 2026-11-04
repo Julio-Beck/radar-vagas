@@ -49,9 +49,9 @@ TERMOS = [
 # Dica: abra uma vaga da empresa no LinkedIn/Indeed e veja pra onde o botão "Candidatar" leva.
 EMPRESAS = [
     ("CI&T", "https://jobs.lever.co/ciandt"),
-    ("Zenvia", "https://job-boards.greenhouse.io/zenvia"),
+    ("Zenvia", "https://zenvia.gupy.io"),
+    ("Grupo RBS", "https://gruporbs.gupy.io"),
     # ("Indicium", "COLE AQUI O LINK DE CARREIRAS"),
-    # ("Grupo RBS", "COLE AQUI O LINK DE CARREIRAS"),
 ]
 
 # Busca presencial/híbrida perto de você. Vagas remotas do Brasil todo entram sempre.
@@ -76,16 +76,20 @@ ANOS_EXPERIENCIA_MAX = 2   # se a vaga pedir mais que isso, cai pra "Talvez"
 EMPRESAS_FAVORITAS = ["indicium", "rbs"]
 
 # Palavras que definem o nível (procuradas no título).
-NIVEL_BOM = [
-    "estagio", "estagiario", "estagiaria", "junior", "jr", "trainee",
-    "aprendiz", "assistente", "auxiliar", "iniciante", "nivel 1", "n1",
-    "intern", "internship", "entry level", "entry-level",
+ESTAGIO = [
+    "estagio", "estagios", "estagiario", "estagiaria", "estagiarios", "estagiarias",
+    "trainee", "aprendiz", "intern", "internship",
+]
+NIVEL_BOM = ESTAGIO + [
+    "junior", "jr", "assistente", "auxiliar", "iniciante", "nivel 1", "nivel i", "n1",
+    "analista i", "entry level", "entry-level",
 ]
 NIVEL_RUIM = [
     "senior", "sr", "pleno", "pl", "especialista", "lead", "lider", "tech lead",
     "coordenador", "coordenadora", "gerente", "head", "principal", "staff",
-    "arquiteto", "arquiteta", "manager", "diretor", "diretora", "director",
-    "mid-level", "mid level", "mid",
+    "arquiteto", "arquiteta", "architect", "manager", "diretor", "diretora", "director",
+    "mid-level", "mid level", "mid", "n2", "n3", "nivel 2", "nivel 3", "ii", "iii", "iv",
+    "specialist", "master", "expert",
 ]
 
 # Palavras que dizem que a vaga é de TI (procuradas no título).
@@ -97,7 +101,21 @@ AREA_TI = [
     "devops", "cloud", "qa", "testes", "frontend", "front-end", "backend",
     "back-end", "full stack", "fullstack", "web", "mobile", "android",
     "banco de dados", "seguranca da informacao", "informatica", "computacao",
-    "engineer", "engenheiro de dados", "engenharia de dados", "it",
+    "engenheiro de dados", "engenharia de dados", "it", "ia", "ai",
+    "inteligencia artificial", "machine learning", "ml", "business intelligence",
+    "ciberseguranca", "cybersecurity", "infosec", "observabilidade", "testador", "tester",
+    "rpa", "java", "javascript", "typescript", ".net", "php", "golang", "kotlin", "react",
+    "platform engineer", "site reliability",
+]
+
+# Expressões que usam palavras de TI, mas são de outra área. Saem do título
+# antes de procurar AREA_TI (a descrição ainda pode mostrar que a vaga é de TI).
+TITULO_NAO_TI = [
+    "desenvolvimento de negocios", "desenvolvimento humano", "desenvolvimento organizacional",
+    "desenvolvimento de pessoas", "desenvolvimento comercial", "desenvolvimento de mercado",
+    "redes sociais", "suporte ao paciente", "suporte ao cliente", "suporte a vendas",
+    "suporte de vendas", "suporte comercial", "suporte administrativo", "suporte operacional",
+    "sistemas de irrigacao", "sistemas de gestao da qualidade",
 ]
 
 # Se o título não diz a área, estas na descrição indicam que é de TI.
@@ -112,13 +130,13 @@ AREA_TI_DESCRICAO = [
 
 BASE = Path(__file__).resolve().parent
 FUSO = timezone(timedelta(hours=-3))
-UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-      "(KHTML, like Gecko) Chrome/142.0 Safari/537.36")
+UA = "radar-vagas/1.0 (+https://github.com/Julio-Beck/radar-vagas)"
 REMOTO = ["remoto", "remota", "remote", "home office", "homeoffice", "anywhere"]
-GUPY_URLS = [
-    "https://portal.api.gupy.io/api/v1/jobs",
-    "https://employability-portal.gupy.io/api/v1/jobs",
-]
+NAO_REMOTO = ["hibrido", "hibrida", "hybrid", "presencial", "on-site", "onsite"]
+# Endereços internos da Gupy, sem documentação oficial: podem mudar de novo.
+GUPY_URL = "https://portal.gupy.io/api/job-search/jobs"
+GUPY_EMPRESA_URL = "https://private-api.gupy.io/job-publication/public/jobs"
+ANOS_PLAUSIVEIS = 10  # acima disso é a história da empresa, não um requisito
 NOMES_FONTES = {
     "indeed": "Indeed", "linkedin": "LinkedIn", "glassdoor": "Glassdoor",
     "google": "Google", "gupy": "Gupy", "empresas": "Sites das empresas",
@@ -138,12 +156,13 @@ CIDADES_BR = [
     "osasco", "barueri", "sao jose dos campos", "caxias do sul", "pelotas", "natal",
     "joao pessoa", "maceio", "aracaju", "teresina", "sao luis", "cuiaba", "campo grande",
     "palmas", "niteroi", "jundiai", "sao carlos", "itajai", "chapeco", "passo fundo",
+    "canoas", "novo hamburgo", "sao leopoldo", "gravatai",
 ]
 ESTRANGEIRO = [
     "usa", "us", "united states", "eua", "estados unidos", "canada", "mexico", "colombia",
     "argentina", "chile", "peru", "uruguay", "uruguai", "paraguay", "portugal", "spain",
     "espanha", "united kingdom", "uk", "england", "london", "ireland", "germany", "alemanha",
-    "france", "india", "emea", "europe", "europa", "apac", "area",
+    "france", "india", "emea", "europe", "europa", "apac", "bay area",
 ]
 
 
@@ -203,6 +222,16 @@ def sessao():
 
 # ---------- sites de vagas (JobSpy) ----------
 
+def e_remota(flag, titulo, local, busca_remota):
+    """O LinkedIn só marca remota se houver "remote" em inglês, então o título também conta."""
+    t = norm(titulo)
+    if tem(NAO_REMOTO, t):
+        return False
+    if flag == "true" or tem(REMOTO, t) or tem(REMOTO, norm(local)):
+        return True
+    return flag == "" and busca_remota
+
+
 def coletar_jobspy(status):
     try:
         from jobspy import scrape_jobs
@@ -221,12 +250,15 @@ def coletar_jobspy(status):
                 kw = dict(
                     site_name=[fonte], search_term=termo,
                     results_wanted=RESULTADOS_POR_BUSCA,
-                    country_indeed="Brazil", verbose=0,
+                    country_indeed="Brazil", verbose=0, hours_old=24 * DIAS_MAX,
                 )
-                if remoto:
-                    kw.update(location="Brazil", is_remote=True)
+                if not remoto:
+                    kw.update(location=BUSCA_LOCAL, distance=RAIO_MILHAS)
+                elif fonte == "linkedin":
+                    # o JobSpy ignora is_remote no LinkedIn: a busca precisa pedir pelo termo
+                    kw.update(location="Brazil", search_term=f"{termo} remoto")
                 else:
-                    kw.update(location=BUSCA_LOCAL, distance=RAIO_MILHAS, hours_old=24 * DIAS_MAX)
+                    kw.update(location="Brazil", is_remote=True)
                 if fonte == "google":
                     onde = "remoto" if remoto else BUSCA_LOCAL
                     kw["google_search_term"] = f"vagas {termo} {onde}"
@@ -237,12 +269,16 @@ def coletar_jobspy(status):
                     erros += 1
                     print(f"  [{fonte}] erro em '{termo}' ({'remoto' if remoto else 'local'}): {str(e)[:150]}")
                     continue
+                # o JobSpy não levanta exceção quando a fonte falha: guarda o erro aqui
+                erro = df.attrs.get("errors", {}).get(fonte)
+                if erro:
+                    erros += 1
+                    print(f"  [{fonte}] falha em '{termo}' ({'remoto' if remoto else 'local'}): {str(erro)[:150]}")
                 for _, r in df.iterrows():
-                    flag = limpo(r.get("is_remote")).lower()
-                    rem = flag == "true" or (flag == "" and remoto)
+                    titulo, local = limpo(r.get("title")), limpo(r.get("location"))
+                    rem = e_remota(limpo(r.get("is_remote")).lower(), titulo, local, remoto)
                     vagas.append(nova_vaga(
-                        limpo(r.get("title")), limpo(r.get("company")),
-                        limpo(r.get("location")),
+                        titulo, limpo(r.get("company")), local,
                         limpo(r.get("job_url")) or limpo(r.get("job_url_direct")),
                         fonte, limpo(r.get("date_posted")), rem, limpo(r.get("description")),
                     ))
@@ -250,6 +286,8 @@ def coletar_jobspy(status):
                 time.sleep(2)
         if achadas:
             status[fonte] = f"{achadas} encontradas"
+            if erros:
+                status[fonte] += f" · problema: {erros} de {tentativas} buscas falharam"
         elif erros:
             status[fonte] = "bloqueado nesta rodada"
         else:
@@ -262,50 +300,36 @@ def coletar_jobspy(status):
 
 def vaga_gupy(j, empresa_padrao=""):
     local = ", ".join(x for x in [j.get("city"), j.get("state")] if x)
-    rem = j.get("workplaceType") == "remote" or bool(j.get("isRemoteWork"))
     return nova_vaga(
-        j.get("name") or j.get("title") or "", j.get("careerPageName") or empresa_padrao,
+        j.get("name") or "", j.get("careerPageName") or empresa_padrao,
         local, j.get("jobUrl") or "", "gupy", j.get("publishedDate") or "",
-        rem, j.get("description") or "",
+        j.get("workplaceType") == "remote", j.get("description") or "",
     )
 
 
 def coletar_gupy(status):
     s = sessao()
-    s.headers.update({"Origin": "https://portal.gupy.io", "Referer": "https://portal.gupy.io/"})
-    vagas, base_ok, motivos = [], None, set()
+    vagas, falhas, motivos = [], 0, set()
 
     for termo in TERMOS:
-        for pagina in range(5):
-            params = {"jobName": termo, "limit": 10, "offset": pagina * 10}
-            dados = None
-            for url in ([base_ok] if base_ok else GUPY_URLS):
-                try:
-                    r = s.get(url, params=params, timeout=20)
-                    if not r.ok:
-                        motivos.add(f"HTTP {r.status_code}")
-                        print(f"  [gupy] {url} -> HTTP {r.status_code}: {r.text[:120]!r}")
-                        continue
-                    corpo = r.json()
-                    if isinstance(corpo, dict) and isinstance(corpo.get("data"), list):
-                        dados, base_ok = corpo["data"], url
-                        break
-                    motivos.add("resposta inesperada")
-                    print(f"  [gupy] {url} -> formato inesperado: {str(corpo)[:120]}")
-                except Exception as e:
-                    motivos.add(type(e).__name__)
-                    print(f"  [gupy] {url} -> {type(e).__name__}: {str(e)[:120]}")
-            if dados is None:
-                break
-            vagas += [vaga_gupy(j) for j in dados]
-            if len(dados) < 10:
-                break
-            time.sleep(1)
-        if base_ok is None and len(motivos) and termo == TERMOS[1]:
-            break  # duas buscas seguidas falharam nos dois endereços: desiste
+        params = {"jobName": termo, "limit": RESULTADOS_POR_BUSCA, "offset": 0}
+        try:
+            r = s.get(GUPY_URL, params=params, timeout=30)
+            r.raise_for_status()
+            vagas += [vaga_gupy(j) for j in r.json()["data"]]
+        except Exception as e:
+            falhas += 1
+            codigo = getattr(getattr(e, "response", None), "status_code", None)
+            motivos.add(f"HTTP {codigo}" if codigo else type(e).__name__)
+            print(f"  [gupy] '{termo}' -> {type(e).__name__}: {str(e)[:150]}")
+            if falhas >= 2 and not vagas:
+                break  # duas falhas sem nenhum resultado: desiste
+        time.sleep(1)
 
     if vagas:
         status["gupy"] = f"{len(vagas)} encontradas"
+        if falhas:
+            status["gupy"] += f" · problema: {falhas} buscas falharam"
     else:
         status["gupy"] = "bloqueado (" + ", ".join(sorted(motivos)) + ")" if motivos else "nada encontrado"
     print(f"Gupy: {status['gupy']}")
@@ -314,61 +338,15 @@ def coletar_gupy(status):
 
 # ---------- sites de carreira das empresas ----------
 
-def achar_listas(obj, achadas):
-    """Procura, dentro de um JSON qualquer, listas de dicionários com cara de vaga."""
-    if isinstance(obj, list):
-        if obj and all(isinstance(x, dict) for x in obj) and \
-                sum(1 for x in obj if "id" in x and ("title" in x or "name" in x)) >= max(1, len(obj) // 2):
-            achadas.append(obj)
-        for x in obj:
-            achar_listas(x, achadas)
-    elif isinstance(obj, dict):
-        for x in obj.values():
-            achar_listas(x, achadas)
-
-
-def procurar_chave(obj, chaves):
-    """Primeiro valor de texto encontrado para alguma das chaves, em qualquer profundidade."""
-    if isinstance(obj, dict):
-        for k in chaves:
-            if isinstance(obj.get(k), str) and obj[k]:
-                return obj[k]
-        for v in obj.values():
-            achado = procurar_chave(v, chaves)
-            if achado:
-                return achado
-    elif isinstance(obj, list):
-        for v in obj:
-            achado = procurar_chave(v, chaves)
-            if achado:
-                return achado
-    return ""
-
-
 def empresa_gupy(s, nome, sub):
-    base = f"https://{sub}.gupy.io"
-    html = s.get(base + "/", timeout=25).text
+    r = s.get(GUPY_EMPRESA_URL, params={"subdomain": sub}, timeout=25)
+    r.raise_for_status()
     vagas = []
-    m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', html, re.S)
-    if m:
-        listas = []
-        achar_listas(json.loads(m.group(1)), listas)
-        for j in max(listas, key=len, default=[]):
-            titulo = j.get("title") or j.get("name") or ""
-            cidade = procurar_chave(j, ["city", "addressCity"])
-            estado = procurar_chave(j, ["state", "stateShortName", "addressState"])
-            tipo = norm(json.dumps(j.get("workplaceType") or j.get("workplace") or "", ensure_ascii=False))
-            rem = "remote" in tipo or bool(j.get("isRemoteWork"))
-            data = procurar_chave(j, ["publishedDate", "publishedAt", "createdAt"])
-            vagas.append(nova_vaga(titulo, nome, ", ".join(x for x in [cidade, estado] if x),
-                                   f"{base}/jobs/{j['id']}", "empresas", data, rem))
-    if not vagas:  # plano B: links /jobs/123 do HTML
-        for href, texto in re.findall(r'<a[^>]+href="(/jobs/\d+[^"]*)"[^>]*>(.*?)</a>', html, re.S):
-            texto = re.sub(r"<[^>]+>", " ", texto)
-            texto = re.sub(r"\s+", " ", texto).strip()
-            texto = re.sub(r"^Vaga para\s*", "", texto)
-            vagas.append(nova_vaga(texto, nome, "", base + href.split("?")[0], "empresas",
-                                   remoto="remot" in norm(texto)))
+    for j in r.json()["data"]:
+        local = ", ".join(x for x in [j.get("addressCity"), j.get("addressStateShortName")] if x)
+        rem = j.get("workplaceType") == "remote" or bool(j.get("remoteWorking"))
+        vagas.append(nova_vaga(j.get("name"), nome, local, f"https://{sub}.gupy.io/jobs/{j['id']}",
+                               "empresas", remoto=rem))
     return vagas
 
 
@@ -471,6 +449,19 @@ def coletar_empresas(status):
 
 # ---------- tratamento ----------
 
+def perto(local):
+    """True se o local é uma das CIDADES_PERTO, sem confundir com homônimas de outros lugares."""
+    l = norm(local)
+    if not tem(CIDADES_PERTO, l) or re.search(r"santa maria d[aeo]s? ", l):
+        return False
+    if tem(["rs", "rio grande do sul"], l):
+        return True
+    resto = l
+    for parte in CIDADES_PERTO + ["brasil", "brazil", "greater", "area", "regiao", "de"]:
+        resto = resto.replace(parte, " ")
+    return not re.search(r"[a-z]", resto)  # sobrou outra sigla ou lugar: é outra cidade
+
+
 def no_brasil(local):
     """True se o local é no Brasil (ou não diz onde)."""
     l = norm(local)
@@ -480,7 +471,7 @@ def no_brasil(local):
         return True
     if tem(ESTRANGEIRO, l):
         return False
-    if tem(ESTADOS, l) or tem(CIDADES_BR, l) or any(c in l for c in CIDADES_PERTO):
+    if tem(ESTADOS, l) or tem(CIDADES_BR, l) or perto(l):
         return True
     return bool(re.search(r"(?:^|[,\-/(]\s*)(" + "|".join(UFS) + r")\s*(?:$|[,)\-/])", l))
 
@@ -493,10 +484,12 @@ def na_regiao(v):
     local = norm(v["local"])
     if not local or tem(REMOTO, local):
         return True
-    if any(c in local for c in CIDADES_PERTO):
+    if perto(local):
         return True
     # presencial em outra cidade: só passa se a descrição deixar claro que é remoto
-    return tem(["100% remoto", "trabalho remoto", "home office", "fully remote"], norm(v["descricao"][:3000]))
+    # ("home office" sozinho não basta: costuma ser benefício, como "auxílio home office")
+    return tem(["100% remoto", "100% home office", "trabalho remoto", "modelo remoto", "fully remote"],
+               norm(v["descricao"][:3000]))
 
 
 def recente(v):
@@ -509,31 +502,49 @@ def recente(v):
 
 
 def anos_pedidos(desc):
+    numero = r"(\d{1,2})(?:\s*(?:a|ou|to|-|–)\s*\d{1,2})?\s*\+?\s*"  # "3", "3+", "3 a 5"
     padroes = [
-        r"(\d{1,2})\s*\+?\s*anos? de experiencia",
-        r"experiencia (?:minima |comprovada )?de (\d{1,2})\s*\+?\s*anos?",
-        r"(\d{1,2})\s*\+?\s*years? of (?:professional )?experience",
+        numero + r"anos? de experiencia",
+        r"experiencia (?:minima |comprovada )?de " + numero + r"anos?",
+        numero + r"years? of (?:\w+ )?experience",
     ]
-    achados = [int(n) for p in padroes for n in re.findall(p, desc)]
+    empresa_antes = ("empresa", "somos", "temos", "possuimos", "nossa", "nosso", "consultoria",
+                     "grupo", "companhia", "we have", "our ")
+    empresa_depois = ("mercado", "atuamos", "atuando", "somos", "oferecemos", "historia", "in the market")
+    achados = []
+    for p in padroes:
+        for m in re.finditer(p, desc):
+            antes, depois = desc[max(0, m.start() - 40):m.start()], desc[m.end():m.end() + 30]
+            if any(x in antes for x in empresa_antes) or any(x in depois for x in empresa_depois):
+                continue  # fala da empresa ("há 30 anos de experiência no mercado")
+            if int(m.group(1)) <= ANOS_PLAUSIVEIS:
+                achados.append(int(m.group(1)))
     return min(achados) if achados else 0
 
 
 def classificar(v):
-    t = norm(v["titulo"]).replace("pl/sql", "plsql")
+    t = re.sub(r"pl[\s/-]?sql", "plsql", norm(v["titulo"]))
     d = norm(v["descricao"][:6000])
 
-    if tem(NIVEL_RUIM, t):
+    nivel = tem(NIVEL_BOM, t)
+    # em estágio, "N3" ou "Principal" não indicam senioridade
+    nivel_acima = tem(NIVEL_RUIM, t) and not tem(ESTAGIO, t)
+    if nivel_acima and not nivel:
         return "descartada", "Nível acima do seu (pleno/sênior ou liderança)"
 
-    area_titulo = tem(AREA_TI, t)
+    titulo_area = t
+    for expressao in TITULO_NAO_TI:
+        titulo_area = titulo_area.replace(expressao, " ")
+    area_titulo = tem(AREA_TI, titulo_area)
     area_desc = not area_titulo and tem(AREA_TI_DESCRICAO, d)
     if not area_titulo and not area_desc:
         return "descartada", "Fora da área de TI"
 
-    nivel = tem(NIVEL_BOM, t)
     anos = anos_pedidos(d)
     if anos > ANOS_EXPERIENCIA_MAX:
         return "talvez", f"Pede {anos} anos de experiência"
+    if nivel_acima:
+        return "talvez", "Aceita júnior, mas também cita nível acima"
     if nivel and area_titulo:
         return "encaixa", "Estágio/júnior na área de TI"
     if nivel:
@@ -586,9 +597,10 @@ def tratar(brutas, vistas, agora):
     peso = {"encaixa": 2, "talvez": 1, "descartada": 0}
     saida.sort(key=lambda v: (peso[v["classe"]], v["favorita"], v["nova"], v["data"]), reverse=True)
 
-    # esquece vagas vistas há mais de 60 dias
+    # esquece vagas vistas há mais de 60 dias que já saíram do ar. Sem isso, uma vaga
+    # sem data (as de empresa na Gupy) voltaria a aparecer como "Nova" a cada 60 dias.
     corte = agora - timedelta(days=60)
-    for k in [k for k, t in vistas.items() if datetime.fromisoformat(t) < corte]:
+    for k in [k for k, t in vistas.items() if datetime.fromisoformat(t) < corte and k not in unicas]:
         del vistas[k]
     return saida
 
@@ -658,6 +670,9 @@ def main():
             brutas += coletar_empresas(status)
 
     vagas = tratar(brutas, vistas, agora)
+    if not vagas:
+        # falha o workflow (o GitHub avisa por e-mail) e mantém a página anterior no ar
+        sys.exit(f"Nenhuma vaga nesta rodada, página mantida. Fontes: {status}")
     gerar_pagina(vagas, status, agora, pasta)
     arquivo_vistas.write_text(json.dumps(vistas, ensure_ascii=False, indent=0), encoding="utf-8")
 
