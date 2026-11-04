@@ -1,0 +1,40 @@
+name: Buscar vagas
+
+on:
+  schedule:
+    # 6h17, 10h17, 14h17 e 18h17 no horário de Brasília (o GitHub usa UTC)
+    - cron: "17 9,13,17,21 * * *"
+  workflow_dispatch: # botão "Run workflow" pra rodar na hora
+
+permissions:
+  contents: write
+
+concurrency:
+  group: radar-de-vagas
+  cancel-in-progress: false
+
+jobs:
+  buscar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependências
+        run: pip install -r requirements.txt
+
+      - name: Buscar vagas e gerar a página
+        run: python vagas.py
+
+      - name: Publicar a página
+        run: |
+          git config user.name "radar-de-vagas"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs
+          git commit -m "Vagas atualizadas" || echo "Nada mudou"
+          git push
