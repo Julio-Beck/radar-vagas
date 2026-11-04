@@ -10,6 +10,7 @@ Uso:
 """
 import html as htmllib
 import json
+import os
 import re
 import sys
 import time
@@ -45,13 +46,14 @@ TERMOS = [
 #   Ashby        -> https://jobs.ashbyhq.com/NOME
 #   Workable     -> https://apply.workable.com/NOME
 #   SmartRecruiters -> https://jobs.smartrecruiters.com/NOME
+#   InHire       -> https://NOME.inhire.app/vagas
 # Se o link for de outra plataforma, a página avisa em "Fontes".
 # Dica: abra uma vaga da empresa no LinkedIn/Indeed e veja pra onde o botão "Candidatar" leva.
 EMPRESAS = [
     ("CI&T", "https://jobs.lever.co/ciandt"),
     ("Zenvia", "https://zenvia.gupy.io"),
     ("Grupo RBS", "https://gruporbs.gupy.io"),
-    # ("Indicium", "COLE AQUI O LINK DE CARREIRAS"),
+    ("Indicium", "https://indicium.inhire.app/vagas"),
 ]
 
 # Busca presencial/híbrida perto de você. Vagas remotas do Brasil todo entram sempre.
@@ -67,6 +69,12 @@ CIDADES_PERTO = [
 # Sites de vagas. Se algum só der erro, é só tirar da lista.
 FONTES_JOBSPY = ["indeed", "linkedin", "glassdoor"]
 USAR_GUPY = True
+
+# Repositórios do GitHub onde as vagas são publicadas como issues. Só entram as remotas.
+REPOS_VAGAS = [
+    "backend-br/vagas", "frontendbr/vagas", "react-brasil/vagas", "soujava/vagas-java",
+    "phpdevbr/vagas", "androiddevbr/vagas", "qa-brasil/vagas", "datascience-br/vagas",
+]
 
 RESULTADOS_POR_BUSCA = 50
 DIAS_MAX = 14              # ignora vagas publicadas há mais tempo que isso
@@ -118,6 +126,9 @@ TITULO_NAO_TI = [
     "sistemas de irrigacao", "sistemas de gestao da qualidade",
 ]
 
+# Cargos de outra área, mesmo que o título cite TI ("Sales Executive - Data & AI").
+CARGO_NAO_TI = ["sales", "account executive", "vendas", "vendedor", "vendedora", "recruiter", "recrutador", "recrutadora"]
+
 # Se o título não diz a área, estas na descrição indicam que é de TI.
 AREA_TI_DESCRICAO = [
     "python", "sql", "programacao", "desenvolvimento de software",
@@ -133,13 +144,15 @@ FUSO = timezone(timedelta(hours=-3))
 UA = "radar-vagas/1.0 (+https://github.com/Julio-Beck/radar-vagas)"
 REMOTO = ["remoto", "remota", "remote", "home office", "homeoffice", "anywhere"]
 NAO_REMOTO = ["hibrido", "hibrida", "hybrid", "presencial", "on-site", "onsite"]
+# "home office" sozinho não basta na descrição: costuma ser benefício ("auxílio home office")
+DESCRICAO_REMOTA = ["100% remoto", "100% home office", "trabalho remoto", "modelo remoto", "fully remote"]
 # Endereços internos da Gupy, sem documentação oficial: podem mudar de novo.
 GUPY_URL = "https://portal.gupy.io/api/job-search/jobs"
 GUPY_EMPRESA_URL = "https://private-api.gupy.io/job-publication/public/jobs"
 ANOS_PLAUSIVEIS = 10  # acima disso é a história da empresa, não um requisito
 NOMES_FONTES = {
     "indeed": "Indeed", "linkedin": "LinkedIn", "glassdoor": "Glassdoor",
-    "google": "Google", "gupy": "Gupy", "empresas": "Sites das empresas",
+    "google": "Google", "gupy": "Gupy", "empresas": "Sites das empresas", "github": "GitHub",
 }
 UFS = ("ac al ap am ba ce df es go ma mt ms mg pa pb pr pe pi rj rn rs ro rr sc sp se to").split()
 ESTADOS = [
@@ -336,6 +349,64 @@ def coletar_gupy(status):
     return vagas
 
 
+# ---------- repositórios de vagas no GitHub ----------
+
+def vaga_github(j):
+    """Converte uma issue em vaga, ou None se não for remota. Ex.: "[Remoto] Dev Júnior na Acme"."""
+    colchetes = re.findall(r"\[([^\]]*)\]", j.get("title") or "")
+    titulo = re.sub(r"\[[^\]]*\]", " ", j.get("title") or "")
+    titulo = re.sub(r"\s+", " ", titulo).strip(" -–—|")
+    etiquetas = [x.get("name") or "" for x in j.get("labels") or []]
+    corpo = j.get("body") or ""
+
+    cabecalho = norm(" ".join(colchetes + etiquetas + [titulo]))
+    if tem(NAO_REMOTO, cabecalho):
+        return None
+    if not tem(REMOTO, cabecalho) and not tem(DESCRICAO_REMOTA, norm(corpo[:3000])):
+        return None
+
+    # o nível costuma vir só na etiqueta ou no colchete, e a classificação olha o título
+    e_nivel = lambda x: len(x) <= 20 and (tem(NIVEL_BOM, norm(x)) or tem(NIVEL_RUIM, norm(x)))
+    # etiquetas podem trazer emoji ("👨 Pleno") e várias opções ("Júnior" e "Estágio" na mesma vaga)
+    for nivel in dict.fromkeys(re.sub(r"[^\w\s/-]", "", x).strip() for x in etiquetas + colchetes if e_nivel(x)):
+        if not tem([nivel], norm(titulo)):
+            titulo += f" ({nivel})"
+
+    # colchetes com lugar ("Remoto / Portugal") deixam no_brasil cortar vagas de fora
+    local = " / ".join(x for x in colchetes if not e_nivel(x)) or "Remoto"
+    # a última menção é a empresa: "Java Júnior (Pagamentos via Pix) | Confidencial (via Sylision)"
+    empresas = re.findall(r"(?:@|\b(?:na|no|at|via)\b)\s+([A-Z0-9][^|@()–—]{1,40})", titulo)
+    return nova_vaga(titulo, empresas[-1].strip(" -") if empresas else "", local, j.get("html_url"),
+                     "github", j.get("created_at") or "", True, corpo)
+
+
+def coletar_github(status):
+    s = sessao()
+    token = os.environ.get("GITHUB_TOKEN")
+    if token:  # sem token, o GitHub limita a 60 consultas por hora
+        s.headers["Authorization"] = f"Bearer {token}"
+    vagas, falhas = [], []
+    for repo in REPOS_VAGAS:
+        try:
+            r = s.get(f"https://api.github.com/repos/{repo}/issues", timeout=30,
+                      params={"state": "open", "sort": "created", "direction": "desc", "per_page": 100})
+            r.raise_for_status()
+            achadas = [vaga_github(j) for j in r.json() if "pull_request" not in j]
+            achadas = [v for v in achadas if v]
+            vagas += achadas
+            print(f"  [github] {repo}: {len(achadas)} remotas")
+        except Exception as e:
+            falhas.append(repo)
+            print(f"  [github] {repo}: {type(e).__name__}: {str(e)[:150]}")
+
+    texto = f"{len(vagas)} encontradas" if vagas else "nada encontrado"
+    if falhas:
+        texto += " · problema: " + ", ".join(falhas)
+    status["github"] = texto
+    print(f"GitHub: {texto}")
+    return vagas
+
+
 # ---------- sites de carreira das empresas ----------
 
 def empresa_gupy(s, nome, sub):
@@ -408,8 +479,23 @@ def empresa_smartrecruiters(s, nome, conta):
     return vagas
 
 
+def empresa_inhire(s, nome, conta):
+    r = s.get("https://api.inhire.app/job-posts/public/pages", headers={"X-Tenant": conta}, timeout=25)
+    r.raise_for_status()
+    vagas = []
+    for j in r.json().get("jobsPage", []):
+        if j.get("status") != "published":
+            continue
+        local = re.sub(r"\bBR$", "Brasil", j.get("location") or "")
+        vagas.append(nova_vaga(j.get("displayName"), nome, local,
+                               f"https://{conta}.inhire.app/vagas/{j.get('jobId')}", "empresas",
+                               remoto=j.get("workplaceType") == "Remote"))
+    return vagas
+
+
 PLATAFORMAS = [
     (r"https?://([\w-]+)\.gupy\.io", empresa_gupy),
+    (r"https?://([\w-]+)\.inhire\.app", empresa_inhire),
     (r"greenhouse\.io/(?:embed/job_board\?for=)?([\w-]+)", empresa_greenhouse),
     (r"jobs\.lever\.co/([\w.-]+)", empresa_lever),
     (r"jobs\.ashbyhq\.com/([\w.%-]+)", empresa_ashby),
@@ -487,9 +573,7 @@ def na_regiao(v):
     if perto(local):
         return True
     # presencial em outra cidade: só passa se a descrição deixar claro que é remoto
-    # ("home office" sozinho não basta: costuma ser benefício, como "auxílio home office")
-    return tem(["100% remoto", "100% home office", "trabalho remoto", "modelo remoto", "fully remote"],
-               norm(v["descricao"][:3000]))
+    return tem(DESCRICAO_REMOTA, norm(v["descricao"][:3000]))
 
 
 def recente(v):
@@ -531,6 +615,9 @@ def classificar(v):
     nivel_acima = tem(NIVEL_RUIM, t) and not tem(ESTAGIO, t)
     if nivel_acima and not nivel:
         return "descartada", "Nível acima do seu (pleno/sênior ou liderança)"
+
+    if tem(CARGO_NAO_TI, t):
+        return "descartada", "Fora da área de TI"
 
     titulo_area = t
     for expressao in TITULO_NAO_TI:
@@ -666,6 +753,8 @@ def main():
             brutas += coletar_jobspy(status)
         if USAR_GUPY:
             brutas += coletar_gupy(status)
+        if REPOS_VAGAS:
+            brutas += coletar_github(status)
         if EMPRESAS:
             brutas += coletar_empresas(status)
 

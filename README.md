@@ -1,6 +1,6 @@
 # Radar de Vagas
 
-Busca vagas de estágio e júnior em TI no Indeed, LinkedIn, Glassdoor, Gupy e nos sites de carreira das empresas que eu escolher, classifica pelo meu perfil e publica uma página simples pra abrir no celular. Roda sozinho no GitHub Actions 4x por dia.
+Busca vagas de estágio e júnior em TI no Indeed, LinkedIn, Glassdoor, Gupy, em repositórios de vagas do GitHub e nos sites de carreira das empresas que eu escolher, classifica pelo meu perfil e publica uma página simples pra abrir no celular. Roda sozinho no GitHub Actions 4x por dia.
 
 ## Arquivos
 
@@ -31,7 +31,8 @@ Pronto. Daqui pra frente a página se atualiza sozinha às 6h17, 10h17, 14h17 e 
 Abra `vagas.py` no GitHub, toque no lápis e mexa só no bloco **CONFIGURAÇÃO** do topo:
 
 - `TERMOS`: o que buscar nos sites de vagas.
-- `EMPRESAS`: sites de carreira de empresas. Cole o nome e o link da página "Trabalhe conosco". O script reconhece Gupy (`nome.gupy.io`), Greenhouse, Lever, Ashby, Workable e SmartRecruiters. Se o link for de outra plataforma, a página avisa em "Fontes". Dica: abra uma vaga da empresa no LinkedIn e veja pra onde o botão "Candidatar" leva.
+- `EMPRESAS`: sites de carreira de empresas. Cole o nome e o link da página "Trabalhe conosco". O script reconhece Gupy (`nome.gupy.io`), InHire (`nome.inhire.app`), Greenhouse, Lever, Ashby, Workable e SmartRecruiters. Se o link for de outra plataforma, a página avisa em "Fontes". Dica: abra uma vaga da empresa no LinkedIn e veja pra onde o botão "Candidatar" leva.
+- `REPOS_VAGAS`: repositórios do GitHub com vagas em issues. Só entram as remotas.
 - `BUSCA_LOCAL` e `CIDADES_PERTO`: onde vale vaga presencial. Remoto do Brasil todo entra sempre.
 - `EMPRESAS_FAVORITAS`: ganham estrela e sobem na lista.
 - `NIVEL_BOM`, `NIVEL_RUIM`, `AREA_TI`: as palavras que decidem "Encaixa", "Talvez" e "Fora".

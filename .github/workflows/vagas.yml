@@ -30,6 +30,8 @@ jobs:
 
       - name: Buscar vagas e gerar a página
         run: python vagas.py
+        env:
+          GITHUB_TOKEN: ${{ github.token }} # só para ler as issues dos repositórios de vagas
 
       - name: Publicar a página
         run: |
