@@ -1,0 +1,50 @@
+# Radar de Vagas
+
+Busca vagas de estágio e júnior em TI no Indeed, LinkedIn, Glassdoor, Google e Gupy, classifica pelo meu perfil e publica uma página simples pra abrir no celular. Roda sozinho no GitHub Actions 4x por dia.
+
+## Arquivos
+
+| Arquivo | O que é |
+|---|---|
+| `vagas.py` | O coletor. A configuração (termos, cidades, empresas favoritas) fica no topo. |
+| `template.html` | O visual da página. |
+| `requirements.txt` | Bibliotecas Python. |
+| `.github/workflows/vagas.yml` | O agendamento no GitHub Actions. |
+| `docs/` | Criada automaticamente: a página publicada e o histórico de vagas já vistas. |
+
+## Configurar pelo celular (uma vez só)
+
+Dica: se algum menu não aparecer no navegador do celular, ative **"Site para computador"** no menu ⋮ do Chrome.
+
+1. **Criar o repositório.** No github.com, toque em **+ → New repository**. Nome: `radar-vagas`. Deixe **Public** e **não** marque "Add a README". Toque em **Create repository**.
+2. **Subir os arquivos.** Na página do repositório vazio, toque em **uploading an existing file**. Selecione `vagas.py`, `template.html`, `requirements.txt` e `README.md`. Toque em **Commit changes**.
+3. **Criar o agendamento.** Toque em **Add file → Create new file**. No nome, digite exatamente `.github/workflows/vagas.yml` (as barras criam as pastas). Cole o conteúdo do `vagas.yml` e toque em **Commit changes**.
+4. **Dar permissão de escrita.** **Settings → Actions → General**, role até **Workflow permissions**, marque **Read and write permissions** e salve.
+5. **Rodar a primeira vez.** Aba **Actions → Buscar vagas → Run workflow → Run workflow**. Leva uns 5 a 15 minutos. Quando ficar com o ✓ verde, siga.
+6. **Ligar a página.** **Settings → Pages**. Em *Source*, escolha **Deploy from a branch**, depois **main** e a pasta **/docs**. Salve. Em 1 ou 2 minutos aparece o link, no formato `https://SEU-USUARIO.github.io/radar-vagas/`.
+7. **Atalho na tela inicial.** Abra o link no Chrome, toque em **⋮ → Adicionar à tela inicial**.
+
+Pronto. Daqui pra frente a página se atualiza sozinha às 6h17, 10h17, 14h17 e 18h17. Pra forçar uma busca na hora, repita o passo 5.
+
+## Ajustar a busca
+
+Abra `vagas.py` no GitHub, toque no lápis e mexa só no bloco **CONFIGURAÇÃO** do topo:
+
+- `TERMOS`: o que buscar.
+- `BUSCA_LOCAL` e `CIDADES_PERTO`: onde vale vaga presencial. Remoto do Brasil todo entra sempre.
+- `EMPRESAS_FAVORITAS`: ganham estrela e sobem na lista.
+- `NIVEL_BOM`, `NIVEL_RUIM`, `AREA_TI`: as palavras que decidem "Encaixa", "Talvez" e "Fora".
+- `FONTES_JOBSPY`: se uma fonte só der erro, tire da lista.
+
+## Como a classificação funciona
+
+- **Encaixa:** o título tem nível de entrada (estágio, júnior, trainee...) **e** área de TI.
+- **Talvez:** é de TI, mas o título não diz o nível, ou a vaga pede mais de 2 anos de experiência.
+- **Fora:** nível acima (pleno, sênior, liderança) ou fora de TI.
+- **Nova:** apareceu pela primeira vez nas últimas 24 horas.
+
+## Problemas comuns
+
+- **LinkedIn ou Glassdoor "bloqueado nesta rodada":** esses sites barram servidores de nuvem às vezes. É normal; nas outras rodadas costuma voltar.
+- **Erro de permissão no passo "Publicar a página":** refaça o passo 4.
+- **Testar o visual sem buscar nada:** `python vagas.py --demo` gera `demo/index.html` com vagas de exemplo.

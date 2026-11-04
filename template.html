@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Radar de Vagas</title>
+<style>
+  :root {
+    /* 60% base */
+    --bg: #f4f5f6;
+    --surface: #ffffff;
+    /* 30% secundária: texto e estrutura */
+    --text: #15191e;
+    --muted: #5b6470;
+    --line: #dde1e5;
+    /* 10% destaque: só no que é decisão (filtro ativo, vaga nova) */
+    --accent: #1d4ed8;
+    --accent-text: #ffffff;
+    /* significado */
+    --ok: #15803d;
+    --maybe: #b45309;
+    --off: #6b7280;
+
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "SF Mono", "Roboto Mono", Consolas, monospace;
+    --gutter: 16px;
+    --bar-h: 64px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0e1114; --surface: #161a1f; --text: #e8ebee; --muted: #9aa3ad;
+      --line: #2a3038; --accent: #4f7cff; --accent-text: #0b0d10;
+      --ok: #4ade80; --maybe: #fbbf24; --off: #8b939c;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0e1114; --surface: #161a1f; --text: #e8ebee; --muted: #9aa3ad;
+    --line: #2a3038; --accent: #4f7cff; --accent-text: #0b0d10;
+    --ok: #4ade80; --maybe: #fbbf24; --off: #8b939c;
+  }
+
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--bg); color: var(--text); font-family: var(--sans);
+    font-size: 15px; line-height: 1.45; -webkit-text-size-adjust: 100%;
+    padding-bottom: calc(var(--bar-h) + env(safe-area-inset-bottom) + 24px);
+  }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 0 var(--gutter); }
+
+  /* topo */
+  header { padding: 28px 0 16px; }
+  h1 { font-size: 28px; line-height: 1.1; font-weight: 750; letter-spacing: -0.02em; }
+  .sub { margin-top: 6px; color: var(--muted); font-family: var(--mono); font-size: 12px; }
+  .busca {
+    display: block; width: 100%; margin-top: 16px; padding: 12px 14px;
+    font: inherit; color: var(--text); background: var(--surface);
+    border: 1px solid var(--line); border-radius: 0; outline: none;
+  }
+  .busca:focus { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+
+  .fontes { margin-top: 12px; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .fontes summary { cursor: pointer; padding: 4px 0; list-style: none; }
+  .fontes summary::-webkit-details-marker { display: none; }
+  .fontes summary::after { content: "  +"; }
+  .fontes[open] summary::after { content: "  −"; }
+  .fontes ul { list-style: none; padding: 6px 0 0; display: grid; gap: 4px; }
+  .fontes .ruim { color: var(--maybe); }
+
+  /* lista */
+  #lista { border-top: 1px solid var(--line); }
+  .vaga {
+    display: block; padding: 16px 0; border-bottom: 1px solid var(--line);
+    color: inherit; text-decoration: none;
+  }
+  .vaga:active { background: var(--surface); }
+  .vaga:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .tags { display: flex; gap: 12px; align-items: center; font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .selo { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+  .selo::before { content: ""; width: 8px; height: 8px; background: currentColor; }
+  .selo.encaixa { color: var(--ok); }
+  .selo.talvez { color: var(--maybe); }
+  .selo.descartada { color: var(--off); }
+  .nova { color: var(--accent); font-weight: 700; }
+  .fav { color: var(--muted); }
+  .vaga h2 { margin-top: 8px; font-size: 17px; line-height: 1.3; font-weight: 700; text-wrap: balance; }
+  .empresa { margin-top: 2px; font-size: 14px; color: var(--text); font-weight: 400; }
+  .meta { margin-top: 8px; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .motivo { margin-top: 4px; font-size: 13px; color: var(--muted); text-wrap: pretty; }
+
+  .vazio { padding: 48px 0; color: var(--muted); text-wrap: pretty; }
+  .vazio strong { display: block; color: var(--text); font-size: 17px; margin-bottom: 6px; }
+
+  /* barra de filtros, perto do polegar */
+  .barra {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 10;
+    background: var(--surface); border-top: 1px solid var(--line);
+    padding: 10px var(--gutter) calc(10px + env(safe-area-inset-bottom));
+  }
+  .barra .wrap { padding: 0; display: flex; gap: 8px; }
+  .seg { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); }
+  .barra button {
+    font: inherit; font-size: 13px; color: var(--text); background: transparent;
+    border: 0; border-radius: 0; min-height: 44px; padding: 0 6px; cursor: pointer;
+  }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .barra button .n { display: block; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .barra button[aria-pressed="true"] { background: var(--accent); color: var(--accent-text); }
+  .barra button[aria-pressed="true"] .n { color: inherit; opacity: 0.85; }
+  .novas { border: 1px solid var(--line) !important; width: 72px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Radar de Vagas</h1>
+    <p class="sub" id="atualizado"></p>
+    <input class="busca" id="busca" type="search" placeholder="Filtrar por cargo, empresa ou cidade" aria-label="Filtrar vagas">
+    <details class="fontes" id="fontes"><summary></summary><ul></ul></details>
+  </header>
+  <main id="lista"></main>
+</div>
+
+<nav class="barra" aria-label="Filtros">
+  <div class="wrap">
+    <div class="seg" role="group" aria-label="Encaixe no perfil">
+      <button type="button" data-classe="encaixa">Encaixa<span class="n"></span></button>
+      <button type="button" data-classe="talvez">Talvez<span class="n"></span></button>
+      <button type="button" data-classe="descartada">Fora<span class="n"></span></button>
+    </div>
+    <button type="button" class="novas" id="novas">Novas<span class="n"></span></button>
+  </div>
+</nav>
+
+<script>
+const DADOS = "__DADOS__";
+
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const sem = s => String(s ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+
+function guardar(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+function ler(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+
+const estado = {
+  classe: ler("radar.classe") || "encaixa",
+  soNovas: ler("radar.novas") === "1",
+  busca: "",
+};
+
+function diasAtras(iso) {
+  if (!iso) return "";
+  const [a, m, d] = iso.split("-").map(Number);
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const n = Math.round((hoje - new Date(a, m - 1, d)) / 864e5);
+  if (n <= 0) return "hoje";
+  if (n === 1) return "ontem";
+  return `há ${n} dias`;
+}
+
+function textoAtualizado(iso) {
+  const t = new Date(iso);
+  const hora = t.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  const hoje = new Date();
+  const ontem = new Date(); ontem.setDate(hoje.getDate() - 1);
+  const dia = t.toDateString() === hoje.toDateString() ? "hoje"
+            : t.toDateString() === ontem.toDateString() ? "ontem"
+            : t.toLocaleDateString("pt-BR");
+  return `Atualizado ${dia} às ${hora} · ${DADOS.vagas.length} vagas`;
+}
+
+function cabecalho() {
+  $("#atualizado").textContent = textoAtualizado(DADOS.atualizado);
+  const ruins = DADOS.fontes.filter(f => !/encontrad/.test(f.status));
+  $("#fontes summary").textContent = ruins.length
+    ? `Fontes: ${DADOS.fontes.length - ruins.length} ok, ${ruins.length} com problema`
+    : `Fontes: todas ok`;
+  $("#fontes ul").innerHTML = DADOS.fontes.map(f =>
+    `<li class="${/encontrad/.test(f.status) ? "" : "ruim"}">${esc(f.nome)}: ${esc(f.status)}</li>`).join("");
+}
+
+function filtradas() {
+  const q = sem(estado.busca);
+  return DADOS.vagas.filter(v =>
+    (!estado.soNovas || v.nova) &&
+    (!q || sem(`${v.titulo} ${v.empresa} ${v.local}`).includes(q)));
+}
+
+function cartao(v) {
+  const jaDizRemoto = /remot|home office/i.test(v.local || "");
+  const local = v.remoto && !jaDizRemoto ? (v.local ? `Remoto · ${v.local}` : "Remoto") : (v.local || "Local não informado");
+  const meta = [local, v.fontes.join(", "), diasAtras(v.data)].filter(Boolean).join(" · ");
+  const rotulo = { encaixa: "Encaixa", talvez: "Talvez", descartada: "Fora do perfil" }[v.classe];
+  return `<a class="vaga" href="${esc(v.link)}" target="_blank" rel="noopener">
+    <div class="tags">
+      <span class="selo ${v.classe}">${rotulo}</span>
+      ${v.nova ? '<span class="nova">Nova</span>' : ""}
+      ${v.favorita ? '<span class="fav">★ Favorita</span>' : ""}
+    </div>
+    <h2>${esc(v.titulo)}</h2>
+    <p class="empresa">${esc(v.empresa || "Empresa não informada")}</p>
+    <p class="meta">${esc(meta)}</p>
+    ${v.classe === "encaixa" ? "" : `<p class="motivo">${esc(v.motivo)}</p>`}
+  </a>`;
+}
+
+function vazio() {
+  if (!DADOS.vagas.length) return `<div class="vazio"><strong>Nenhuma vaga nesta rodada.</strong>Veja em "Fontes" se alguma está com problema. A próxima busca roda sozinha.</div>`;
+  if (estado.soNovas) return `<div class="vazio"><strong>Nada novo aqui nas últimas 24h.</strong>Toque em "Novas" para ver todas desta categoria.</div>`;
+  if (estado.busca) return `<div class="vazio"><strong>Nada com "${esc(estado.busca)}".</strong>Tente outra palavra ou outra aba.</div>`;
+  if (estado.classe === "encaixa") return `<div class="vazio"><strong>Nenhuma vaga com encaixe certo agora.</strong>Dê uma olhada em "Talvez": costumam ser vagas boas que não dizem o nível no título.</div>`;
+  return `<div class="vazio"><strong>Nada nesta aba.</strong></div>`;
+}
+
+function render() {
+  const base = filtradas();
+  const visiveis = base.filter(v => v.classe === estado.classe);
+  document.querySelectorAll(".seg button").forEach(b => {
+    const c = b.dataset.classe;
+    b.setAttribute("aria-pressed", String(c === estado.classe));
+    $(".n", b).textContent = base.filter(v => v.classe === c).length;
+  });
+  const btnNovas = $("#novas");
+  btnNovas.setAttribute("aria-pressed", String(estado.soNovas));
+  $(".n", btnNovas).textContent = DADOS.vagas.filter(v => v.nova).length;
+  $("#lista").innerHTML = visiveis.length ? visiveis.map(cartao).join("") : vazio();
+}
+
+document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => {
+  estado.classe = b.dataset.classe; guardar("radar.classe", estado.classe);
+  render(); window.scrollTo(0, 0);
+}));
+$("#novas").addEventListener("click", () => {
+  estado.soNovas = !estado.soNovas; guardar("radar.novas", estado.soNovas ? "1" : "0"); render();
+});
+$("#busca").addEventListener("input", e => { estado.busca = e.target.value.trim(); render(); });
+
+cabecalho();
+render();
+</script>
+</body>
+</html>
