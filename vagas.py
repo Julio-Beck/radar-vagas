@@ -225,6 +225,12 @@ def nova_vaga(titulo, empresa, local, link, fonte, data="", remoto=False, descri
     }
 
 
+def descricao_remota(descricao):
+    """True se a descrição confirma trabalho remoto e não cita modelo híbrido ou presencial."""
+    d = norm(descricao[:3000])
+    return tem(DESCRICAO_REMOTA, d) and not tem(NAO_REMOTO, d)
+
+
 def sessao():
     import requests
     s = requests.Session()
@@ -362,7 +368,7 @@ def vaga_github(j):
     cabecalho = norm(" ".join(colchetes + etiquetas + [titulo]))
     if tem(NAO_REMOTO, cabecalho):
         return None
-    if not tem(REMOTO, cabecalho) and not tem(DESCRICAO_REMOTA, norm(corpo[:3000])):
+    if not tem(REMOTO, cabecalho) and not descricao_remota(corpo):
         return None
 
     # o nível costuma vir só na etiqueta ou no colchete, e a classificação olha o título
@@ -573,7 +579,7 @@ def na_regiao(v):
     if perto(local):
         return True
     # presencial em outra cidade: só passa se a descrição deixar claro que é remoto
-    return tem(DESCRICAO_REMOTA, norm(v["descricao"][:3000]))
+    return descricao_remota(v["descricao"])
 
 
 def recente(v):
@@ -603,7 +609,8 @@ def anos_pedidos(desc):
                 continue  # fala da empresa ("há 30 anos de experiência no mercado")
             if int(m.group(1)) <= ANOS_PLAUSIVEIS:
                 achados.append(int(m.group(1)))
-    return min(achados) if achados else 0
+    # cada número já é o início da sua faixa; requisitos diferentes são cumulativos
+    return max(achados) if achados else 0
 
 
 def classificar(v):
@@ -663,6 +670,8 @@ def tratar(brutas, vistas, agora):
                     atual["fontes"].append(f)
             if not atual["data"] or (v["data"] and v["data"] > atual["data"]):
                 atual["data"] = v["data"]
+            if len(v["descricao"]) > len(atual["descricao"]):
+                atual["descricao"] = v["descricao"]  # a classificação depende dos requisitos
             continue
         unicas[k] = v
     print(f"Cortadas: {cortes}")
