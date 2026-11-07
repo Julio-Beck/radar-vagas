@@ -91,6 +91,13 @@ Nenhuma até aqui. O que ficou sem resposta está em Perguntas em aberto.
 
 > Somente acréscimos. Formato: AAAA-MM-DD, contexto, ticket relacionado.
 
+- 2026-11-04, revisão do Codex, sem ticket ainda. Sintoma: vaga júnior que pede 5 anos caía em Encaixa quando a duplicata sem descrição vinha primeiro. Causa: a deduplicação não copiava a descrição. Correção: mantém a descrição mais longa.
+- 2026-11-04, revisão do Codex, sem ticket ainda. Sintoma: "1 ano com SQL e 5 anos com Python" contava 1 ano. Causa: `anos_pedidos` usava o menor valor entre todos os requisitos. Correção: usa o maior, e o início de cada faixa continua valendo.
+- 2026-11-04, revisão do Codex, sem ticket ainda. Sintoma: vaga híbrida fora da região passava por citar "trabalho remoto". Causa: a descrição não era checada quanto a híbrido ou presencial. Correção: `descricao_remota` exige a ausência desses termos.
+- 2026-11-04, revisor-seguranca, sem ticket ainda. Página em branco: um título de issue em `REPOS_VAGAS` como `[Remoto] <!--<script> Dev Jr` impede o script da página de rodar, porque o `.replace("</", ...)` em `gerar_pagina` não neutraliza `<!--`. Qualquer pessoa pode abrir essa issue. Reproduzido em Chrome headless; sem execução de código. Correção proposta: `json.dumps(...).replace("<", "\u003c")`.
+- 2026-11-04, revisor-seguranca, sem ticket ainda. O job de `vagas.yml` tem `contents: write`, passa o token ao `vagas.py` e instala dependências sem lockfile: uma release maliciosa poderia enviar para a main. Correção proposta: separar coleta (leitura) de publicação (escrita) e fixar versões.
+- 2026-11-04, revisor-seguranca, sem ticket ainda. `esc(v.link)` em `template.html` não valida o esquema da URL, então um link `javascript:` passaria. Risco baixo. Correção proposta: aceitar só http e https em `nova_vaga`.
+- 2026-11-04, revisor-seguranca, sem ticket ainda. `descricao_remota` descarta vaga fora da região que só nega o presencial ("100% remoto, sem necessidade de presencial"). Falta decidir se vale tratar a negação.
 - 2026-11-05, T001. O `ci.yml` vindo do modelo-projeto fixa as actions por tag, e o Semgrep do próprio modelo reprova isso: todo projeto novo nasce com o CI vermelho. Corrigido aqui por SHA; a correção precisa ir também para o modelo-projeto.
 - 2026-11-05, T001. O push do Claude deu 403 ("Claude doesn't have GitHub access"), tanto pelo git quanto pelo conector do GitHub. Resolvido pelo Julio liberando o acesso. Se voltar, conferir a conexão do GitHub e a permissão de workflows do app do Claude.
 - 2026-11-05, revisor-seguranca, T001. Sugestão: sem `.github/dependabot.yml`, as actions fixadas por SHA não recebem correções. Proposta: Dependabot para `github-actions` (e `pip`), semanal, em ticket próprio (mexe em .github/).

@@ -1,6 +1,7 @@
 """Regras de classificação, região e leitura de issues. Não acessa a internet."""
 import sys
 import unittest
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -161,6 +162,28 @@ class IssuesDoGitHub(unittest.TestCase):
         self.assertFalse(m.na_regiao(issue("[Remoto / Portugal] Dev Jr")))
         self.assertTrue(m.na_regiao(issue("[Remoto / Brasil] Dev Jr")))
         self.assertTrue(m.na_regiao(issue("[Remoto] Dev Jr")))
+
+
+class ApontamentosDoCodex(unittest.TestCase):
+    def test_duplicata_preserva_a_descricao_mais_completa(self):
+        agora = datetime(2026, 11, 4, 12, tzinfo=m.FUSO)
+        sem_descricao = vaga("Desenvolvedor Júnior", "Santa Maria, RS")
+        com_requisitos = vaga("Desenvolvedor Júnior", "Santa Maria, RS", descricao="Mínimo 5 anos de experiência")
+        saida = m.tratar([sem_descricao, com_requisitos], {}, agora)
+        self.assertEqual(len(saida), 1)
+        self.assertEqual(saida[0]["classe"], "talvez")
+
+    def test_requisitos_cumulativos_contam_o_maior(self):
+        desc = m.norm("1 ano de experiência com SQL e 5 anos de experiência com Python")
+        self.assertEqual(m.anos_pedidos(desc), 5)
+
+    def test_faixa_continua_contando_o_minimo(self):
+        self.assertEqual(m.anos_pedidos(m.norm("de 1 a 5 anos de experiência")), 1)
+
+    def test_hibrido_na_descricao_nao_libera_vaga_de_fora(self):
+        desc = "Modelo híbrido, com dois dias de trabalho remoto por semana"
+        self.assertFalse(m.na_regiao(vaga("Dev Jr", "São Paulo, SP", descricao=desc)))
+        self.assertIsNone(issue("Dev Jr", [], desc))
 
 
 if __name__ == "__main__":
