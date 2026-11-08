@@ -1,0 +1,66 @@
+# Variáveis de ambiente (só o .env.example vai para o repositório)
+.env
+.env.*
+*.env
+!.env.example
+
+# Dependências
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.pyc
+vendor/
+
+# Builds
+dist/
+build/
+out/
+.next/
+.nuxt/
+.svelte-kit/
+target/
+coverage/
+
+# Caches
+.cache/
+.turbo/
+.parcel-cache/
+.eslintcache
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Chaves e segredos
+*.pem
+*.key
+secrets/
+
+# Bancos locais
+*.db
+*.sqlite
+*.sqlite3
+
+# Testes E2E
+test-results/
+playwright-report/
+
+# Sistema e editor
+.DS_Store
+Thumbs.db
+
+# Instruções locais do Claude (não versionadas)
+CLAUDE.local.md
+.claude/settings.local.json
+
+# Página de exemplo (python vagas.py --demo)
+demo/
