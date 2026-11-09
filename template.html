@@ -299,11 +299,12 @@ function cartaoConcurso(c) {
   let salario;
   if (doCargo) salario = `${brl(doCargo)}<small>salário do cargo · ${origem === "edital" ? "conferido no edital" : "segundo a notícia"}</small>`;
   else if (c.salario && c.estagio) salario = `${esc(c.salarioTexto)}<small>bolsa</small>`;
-  const local = !c.uf ? "Nacional · vagas pelo país"
+  const local = !c.uf ? (c.cidade ? `${c.cidade} · órgão nacional` : "Nacional · vagas pelo país")
               : c.cidade ? `${c.cidade} · ${c.uf}`
               : `${UF_NOME[c.uf] || c.uf} · cidade não informada`;
   const p = prazo(c.ate);
-  const meta = [c.vagas, c.fonte, EDITAL[c.edital] || ""].filter(Boolean).join(" · ");
+  const edital = c.edital === "lido" && c.editalOficial ? "edital lido no site oficial" : (EDITAL[c.edital] || "");
+  const meta = [c.vagas, c.fonte, edital].filter(Boolean).join(" · ");
   return `<a class="vaga concurso" href="${esc(c.link)}" target="_blank" rel="noopener">
     <div class="tags">
       <span class="selo ${classe}">${ROTULO[classe]}</span>

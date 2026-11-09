@@ -32,6 +32,78 @@ EDITAIS_POR_RODADA = 200
 MINUTOS_PROCURANDO_EDITAIS = 20
 VERSAO_EDITAL = 1  # aumente pra reler todos os editais depois de mudar as listas abaixo
 
+# Sites oficiais que divulgam os próprios concursos e estágios: (nome, site, UF, cidade).
+# UF vazia = órgão nacional. O radar entra no site, acha a página de concursos/estágios e
+# só mostra o que tiver edital com inscrição ainda aberta.
+ORGAOS_OFICIAIS = [
+    # nacionais
+    ("STJ", "https://www.stj.jus.br", "", "Brasília"),
+    ("STF", "https://portal.stf.jus.br", "", "Brasília"),
+    ("TST", "https://www.tst.jus.br", "", "Brasília"),
+    ("TSE", "https://www.tse.jus.br", "", "Brasília"),
+    ("CNJ", "https://www.cnj.jus.br", "", "Brasília"),
+    ("Senado Federal", "https://www12.senado.leg.br", "", "Brasília"),
+    ("Câmara dos Deputados", "https://www.camara.leg.br", "", "Brasília"),
+    ("TCU", "https://portal.tcu.gov.br", "", ""),
+    ("MPF", "https://www.mpf.mp.br", "", ""),
+    ("Caixa", "https://www.caixa.gov.br", "", ""),
+    ("EBSERH", "https://www.gov.br/ebserh", "", ""),
+    ("IBGE", "https://www.ibge.gov.br", "", ""),
+    # Rio Grande do Sul
+    ("TRF4", "https://www.trf4.jus.br", "RS", "Porto Alegre"),
+    ("Justiça Federal do RS", "https://www.jfrs.jus.br", "RS", ""),
+    ("TRT4", "https://www.trt4.jus.br", "RS", "Porto Alegre"),
+    ("TRE-RS", "https://www.tre-rs.jus.br", "RS", "Porto Alegre"),
+    ("TJRS", "https://www.tjrs.jus.br", "RS", ""),
+    ("MPRS", "https://www.mprs.mp.br", "RS", ""),
+    ("Defensoria Pública do RS", "https://www.defensoria.rs.def.br", "RS", ""),
+    ("PGE-RS", "https://www.pge.rs.gov.br", "RS", "Porto Alegre"),
+    ("TCE-RS", "https://tcers.tc.br", "RS", "Porto Alegre"),
+    ("Assembleia Legislativa do RS", "https://ww4.al.rs.gov.br", "RS", "Porto Alegre"),
+    ("Banrisul", "https://www.banrisul.com.br", "RS", ""),
+    ("PROCERGS", "https://www.procergs.rs.gov.br", "RS", "Porto Alegre"),
+    ("UFSM", "https://www.ufsm.br", "RS", "Santa Maria"),
+    ("UFRGS", "https://www.ufrgs.br", "RS", "Porto Alegre"),
+    ("UFPel", "https://portal.ufpel.edu.br", "RS", "Pelotas"),
+    ("FURG", "https://www.furg.br", "RS", "Rio Grande"),
+    ("Unipampa", "https://unipampa.edu.br", "RS", ""),
+    ("UFCSPA", "https://ufcspa.edu.br", "RS", "Porto Alegre"),
+    ("IFRS", "https://ifrs.edu.br", "RS", ""),
+    ("IF Farroupilha", "https://www.iffarroupilha.edu.br", "RS", ""),
+    ("IFSul", "https://www.ifsul.edu.br", "RS", ""),
+    ("Prefeitura de Santa Maria", "https://www.santamaria.rs.gov.br", "RS", "Santa Maria"),
+    ("Prefeitura de Porto Alegre", "https://prefeitura.poa.br", "RS", "Porto Alegre"),
+    ("Procempa", "https://www.procempa.com.br", "RS", "Porto Alegre"),
+    # Santa Catarina
+    ("TJSC", "https://www.tjsc.jus.br", "SC", ""),
+    ("TRT12", "https://portal.trt12.jus.br", "SC", "Florianópolis"),
+    ("MPSC", "https://www.mpsc.mp.br", "SC", ""),
+    ("UFSC", "https://ufsc.br", "SC", "Florianópolis"),
+    ("IFSC", "https://www.ifsc.edu.br", "SC", ""),
+    ("CIASC", "https://www.ciasc.sc.gov.br", "SC", "Florianópolis"),
+    # Paraná
+    ("TJPR", "https://www.tjpr.jus.br", "PR", ""),
+    ("TRT9", "https://www.trt9.jus.br", "PR", "Curitiba"),
+    ("MPPR", "https://mppr.mp.br", "PR", ""),
+    ("UFPR", "https://ufpr.br", "PR", "Curitiba"),
+    ("UTFPR", "https://www.utfpr.edu.br", "PR", ""),
+    ("IFPR", "https://ifpr.edu.br", "PR", ""),
+    ("Celepar", "https://www.celepar.pr.gov.br", "PR", "Curitiba"),
+]
+MINUTOS_NOS_SITES_OFICIAIS = 10
+
+# Só conta como site oficial o endereço de governo (ou um dos domínios abaixo) com HTTPS.
+SUFIXOS_OFICIAIS = (".gov.br", ".jus.br", ".mp.br", ".leg.br", ".mil.br", ".def.br", ".tc.br", ".edu.br")
+DOMINIOS_OFICIAIS = ["ufsm.br", "ufrgs.br", "furg.br", "ufsc.br", "ufpr.br", "banrisul.com.br",
+                     "prefeitura.poa.br", "procempa.com.br"]
+# Bancas que organizam concursos: os sites oficiais costumam mandar o edital pra elas.
+BANCAS = ["cebraspe.org.br", "fgv.br", "concursosfcc.com.br", "fundatec.org.br", "objetivas.com.br",
+          "legalleconcursos.com.br", "institutolegalle.org.br", "fepese.org.br", "institutoaocp.org.br",
+          "ibfc.org.br", "vunesp.com.br", "ibade.org.br", "institutoconsulplan.org.br", "idecan.org.br",
+          "cesgranrio.org.br", "selecon.org.br", "portalfaurgs.com.br", "fundacaolasalle.org.br",
+          "ciee.org.br", "cieers.org.br", "cieepr.org.br", "ciee-sc.org.br", "nube.com.br",
+          "premierconcursos.com.br", "omniinstituto.org.br", "furb.br", "acafe.org.br", "nc.ufpr.br"]
+
 # As listas abaixo são procuradas no edital (minúsculo, sem acento) e aceitam
 # expressões regulares: [oa] = "o" ou "a", (de|em) = "de" ou "em", ? = opcional.
 
@@ -238,7 +310,7 @@ class Bloqueado(Exception):
     """O site da banca tem proteção contra robôs (Cloudflare, AWS WAF, captcha)."""
 
 
-def links_da_pagina(html, base):
+def links_da_pagina(html, base, contexto=True):
     """[(url absoluta, texto do link + o texto logo antes dele)] de uma página."""
     from urllib.parse import urljoin
     saida = []
@@ -246,9 +318,9 @@ def links_da_pagina(html, base):
         href = htmllib.unescape(m.group(1).strip())
         if href.startswith(("javascript:", "mailto:", "tel:")):
             continue
-        antes = sem_tags(html[max(0, m.start() - 400):m.start()]).replace("\n", " ")[-120:]
+        antes = sem_tags(html[max(0, m.start() - 400):m.start()]).replace("\n", " ")[-120:] if contexto else ""
         texto = sem_tags(m.group(2)).replace("\n", " ")[:150]
-        saida.append((urljoin(base, href), f"{antes} {texto}"))
+        saida.append((urljoin(base, href), f"{antes} {texto}".strip()))
     return saida
 
 
@@ -302,7 +374,7 @@ def do_orgao(texto, alvo):
     return not alvo or alvo in norm(texto[:15000]).replace("-", " ")
 
 
-def achar_edital(s, links, alvo, max_buscas=12):
+def achar_edital(s, links, alvo, max_buscas=12, aceita=None):
     """Segue os links (notícias, banca, prefeitura) até o edital.
     -> (url, texto, situacao); situacao: lido, bloqueado, sem pdf, pdf escaneado."""
     bloqueado = escaneado = False
@@ -342,6 +414,8 @@ def achar_edital(s, links, alvo, max_buscas=12):
         candidatos = sorted(((nota_pdf(u, t), i, u) for i, (u, t) in enumerate(links_da_pagina(html, final))),
                             key=lambda x: (-x[0], x[1]))
         # primeiro os arquivos com cara de edital (até um link só com ícone serve), depois as páginas
+        if aceita:
+            candidatos = [x for x in candidatos if aceita(x[2])]
         arquivos = [(u, nivel + 1) for n, _, u in candidatos if n >= 1 and parece_arquivo(u)][:3]
         paginas = [(u, nivel + 1) for n, _, u in candidatos if n >= 2 and not parece_arquivo(u)][:3]
         fila = arquivos + paginas + fila
@@ -611,6 +685,114 @@ def e_estagio(c):
                norm(c["titulo"] + " " + c["resumo"]))
 
 
+# ---------- sites oficiais dos órgãos ----------
+
+def dominio(url):
+    from urllib.parse import urlparse
+    return (urlparse(url).hostname or "").lower()
+
+
+def no_dominio(h, lista):
+    return any(h == d or h.endswith("." + d) for d in lista)
+
+
+def oficial(url):
+    """Site de governo (ou da lista DOMINIOS_OFICIAIS) e com HTTPS."""
+    h = dominio(url)
+    return url.lower().startswith("https://") and (h.endswith(SUFIXOS_OFICIAIS) or no_dominio(h, DOMINIOS_OFICIAIS))
+
+
+def confiavel(url):
+    """Site oficial ou de uma banca conhecida."""
+    return oficial(url) or (url.lower().startswith(("https://", "http://")) and no_dominio(dominio(url), BANCAS))
+
+
+PAGINA_DE_CONCURSOS = r"concurso|selec|seletivo|estagi|trabalhe (conosco|no|na)|oportunidades|editais|carreira"
+NAO_E_ABERTURA = r"resultado|homolog|gabarito|convoca|classifica|retifica|nomeac|recurso|cancelad|encerrad|suspens"
+
+
+def links_de_concursos(s, site, ano):
+    """[(url, título)] de concursos/estágios do ano no site oficial (entra na página de concursos)."""
+    corpo, _, final = baixar(s, site)
+    if not oficial(final):
+        raise ValueError(f"o site mandou pra fora do governo: {dominio(final)}")
+    html = corpo.decode("utf-8", "replace")
+    paginas = [final]
+    for u, t in links_da_pagina(html, final, contexto=False):
+        if oficial(u) and re.search(PAGINA_DE_CONCURSOS, norm(t)) and len(t) < 60 and u not in paginas:
+            paginas.append(u)
+    achados, vistos = [], set()
+    for pagina in paginas[:4]:
+        if pagina != final:
+            try:
+                corpo, _, pagina = baixar(s, pagina)
+                html = corpo.decode("utf-8", "replace")
+            except Exception:
+                continue
+            time.sleep(0.4)
+        for u, t in links_da_pagina(html, pagina, contexto=False):
+            n = norm(t + " " + u)
+            if (u in vistos or not confiavel(u) or not re.search(r"edital|concurso|seletivo|selecao|estagi", n)
+                    or str(ano) not in n or re.search(NAO_E_ABERTURA, n)):
+                continue
+            vistos.add(u)
+            achados.append((u, re.sub(r"\s+", " ", t).strip()[:140]))
+    return achados[:8]
+
+
+def coletar_oficiais(s, guardados, novos, agora):
+    """Concursos com inscrição aberta nos sites oficiais. -> (itens prontos pra juntar, texto pro status)"""
+    hoje, ano = agora.date(), agora.year
+    limite = time.monotonic() + MINUTOS_NOS_SITES_OFICIAIS * 60
+    itens, ok, problemas = [], 0, []
+    for nome, site, uf, cidade in ORGAOS_OFICIAIS:
+        if uf and uf not in UFS or (not uf and not INCLUIR_NACIONAIS):
+            continue
+        if time.monotonic() > limite:
+            problemas.append(f"{nome} (sem tempo nesta rodada)")
+            continue
+        if not oficial(site):
+            problemas.append(f"{nome} (não é site oficial)")
+            continue
+        try:
+            links = links_de_concursos(s, site, ano)
+            ok += 1
+        except Exception as e:
+            problemas.append(f"{nome} (sem resposta)")
+            print(f"  [oficial] {nome}: {type(e).__name__}: {str(e)[:120]}")
+            continue
+        for url, titulo in links:
+            chave = "oficial:" + url
+            g = guardados.get(chave) or {"visto": agora.isoformat()}
+            tentar = g.get("versao") != VERSAO_EDITAL or (
+                not g.get("edital") and g.get("tentado", "") < (hoje - timedelta(days=7)).isoformat())
+            if tentar and time.monotonic() < limite:
+                edital_url, texto, situacao = achar_edital(s, [url], "", max_buscas=5, aceita=confiavel)
+                g.update(versao=VERSAO_EDITAL, tentado=hoje.isoformat(), titulo=titulo)
+                if texto:
+                    g["texto"] = texto[:6000]
+                    g["ate"] = data_inscricao(texto, hoje)
+                    g["edital"] = {"versao": VERSAO_EDITAL, "url": edital_url, "situacao": "lido",
+                                   "cargos": linhas_de_cargo(texto), "estagio": trechos_estagio(texto),
+                                   "lotacao": trechos_lotacao(texto)}
+                else:
+                    g.pop("edital", None)
+            novos[chave] = g
+            if not g.get("edital") or not g.get("ate") or g["ate"] < hoje.isoformat():
+                continue  # sem edital ou sem prazo aberto: não dá pra confiar que está aberto
+            valores = [x["salario"] for x in g["edital"]["cargos"] if x["salario"]]
+            c = {"orgao": nome, "titulo": g.get("titulo") or titulo or nome, "link": url,
+                 "fonte": f"Site oficial ({dominio(site)})", "uf": uf, "ate": g["ate"], "vagas": "",
+                 "salario": max(valores) if valores else 0.0, "por_hora": False, "resumo": "",
+                 "escolaridade": "", "cidade_fixa": cidade, "oficial": True}
+            itens.append((c, chave))
+    texto = f"{len(itens)} encontrados (em {ok} de {len(ORGAOS_OFICIAIS)} órgãos)"
+    if problemas:
+        texto += " · problema: " + ", ".join(problemas[:8]) + (" e outros" if len(problemas) > 8 else "")
+    print(f"Sites oficiais: {texto}")
+    return itens, texto
+
+
 # ---------- quais cargos servem pra você ----------
 
 FORMATURA_DIREITO = "jan/2027"
@@ -805,13 +987,15 @@ def cidades_no_texto(texto, uf):
 def cidades(c, noticia, edital):
     """Onde é o trabalho: a cidade da prefeitura/câmara, ou as cidades de lotação do edital/notícia."""
     if not c["uf"]:
-        return []
+        return [c["cidade_fixa"]] if c.get("cidade_fixa") else []
     propria = cidade_do_orgao(c["orgao"])
     if propria:
         return [propria]
     achadas = cidades_no_texto(edital.get("lotacao") or "", c["uf"])
     if not achadas:
         achadas = cidades_no_texto(c["titulo"] + "\n" + noticia, c["uf"])
+    if not achadas and c.get("cidade_fixa"):
+        achadas = [c["cidade_fixa"]]
     return achadas[:12]
 
 
@@ -840,6 +1024,7 @@ def montar(c, g, agora):
         "salario": valor or None, "salarioMin": minimo if minimo and minimo < valor else None,
         "salarioTexto": (reais(valor) + (" por hora" if c["por_hora"] else "")) if valor else "",
         "edital": edital.get("situacao", "sem link"), "editalUrl": edital.get("url", ""),
+        "editalOficial": bool(edital.get("url")) and oficial(edital.get("url", "")),
         "nova": datetime.fromisoformat(g["visto"]) >= agora - timedelta(hours=24),
         "perfis": {p: classificar(c, noticia, edital, p) for p in ("ti", "direito")},
     }
@@ -901,9 +1086,27 @@ def coletar(status, agora, pasta):
         situacao = (g.get("edital") or {}).get("situacao", "sem link")
         situacoes[situacao] = situacoes.get(situacao, 0) + 1
         novos[c["link"]] = g
+    # sites oficiais: o edital deles vale mais que o achado pelas notícias
+    try:
+        oficiais, status["Sites oficiais"] = coletar_oficiais(s, guardados, novos, agora)
+    except Exception as e:
+        oficiais = []
+        status["Sites oficiais"] = f"erro: {type(e).__name__}"
+    for c, chave in oficiais:
+        g = novos[chave]
+        par = next((a for a in abertos if a["uf"] == c["uf"] and e_estagio(a) == e_estagio(c)
+                    and chaves(a) & chaves(c)), None)
+        if par and (novos[par["link"]].get("edital") or {}).get("situacao") != "lido":
+            novos[par["link"]]["edital"] = g["edital"]  # o mesmo concurso: usa o edital do site oficial
+            par["fonte"] += " + site oficial"
+            par["ate"] = par["ate"] or g["ate"]
+        elif not par:
+            abertos.append(c)
+            situacoes["lido"] = situacoes.get("lido", 0) + 1
+
     saida = []
     for c in abertos:
-        item = montar(c, novos[c["link"]], agora)
+        item = montar(c, novos.get(c["link"]) or novos["oficial:" + c["link"]], agora)
         if item["ate"] and item["ate"] < hoje.isoformat():
             continue  # inscrições já fecharam
         saida.append(item)
