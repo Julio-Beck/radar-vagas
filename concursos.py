@@ -29,7 +29,7 @@ INCLUIR_NACIONAIS = True  # concursos federais com vagas no país todo
 # Quantos editais novos procurar por rodada e por quanto tempo (os já lidos ficam guardados;
 # o que não der tempo fica pra próxima rodada).
 EDITAIS_POR_RODADA = 200
-MINUTOS_PROCURANDO_EDITAIS = 20
+MINUTOS_PROCURANDO_EDITAIS = 30
 VERSAO_EDITAL = 1  # aumente pra reler todos os editais depois de mudar as listas abaixo
 
 # Sites oficiais que divulgam os próprios concursos e estágios: (nome, site, UF, cidade).
@@ -989,7 +989,9 @@ def classificar(c, noticia, edital, perfil):
             return ["descartada", "Estágio sem curso de TI", [], None, None]
         if not re.search(r"\bdireito\b|juridic", t_est):
             return ["descartada", "Estágio sem vaga pra Direito", [], None, None]
-        if any(re.search(p, t_est) for p in POS_GRADUACAO) and not re.search(r"graduacao em direito|cursando direito", t_est):
+        # "pós-graduação em Direito" contém "graduação em Direito": só conta graduação que não é pós
+        graduacao = re.search(r"(?<!pos-)(?<!pos )(?<!pos)graduacao em direito|cursando direito|graduandos?\b", t_est)
+        if any(re.search(p, t_est) for p in POS_GRADUACAO) and not graduacao:
             return ["descartada", "Estágio de pós: é pra quem já se formou", [], None, None]
         if re.search(r"ultimo semestre|ultimos semestres|semestres? restantes|minimo de \d+ semestres? (a|para) cursar"
                      r"|50% da carga|formatura[^.]{0,40}20(2[89]|3\d)", t_est):
