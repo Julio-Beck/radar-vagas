@@ -2,7 +2,8 @@
 """
 Radar de Vagas
 Coleta vagas de sites de vagas e de sites de carreira de empresas,
-classifica pelo seu perfil e gera uma página HTML.
+e concursos/estágios públicos da região (concursos.py), classifica pelos
+seus perfis (TI e Direito) e gera uma página HTML.
 
 Uso:
     python vagas.py           -> busca de verdade e gera docs/index.html
@@ -22,7 +23,14 @@ from pathlib import Path
 # CONFIGURAÇÃO  (é só isso aqui que você precisa mexer no dia a dia)
 # =====================================================================
 
+# Perfis: a chavinha no topo da página troca entre eles (vale pra vagas e concursos).
+PERFIS = {
+    "ti": "TI",           # estágio/júnior em desenvolvimento, dados, suporte...
+    "direito": "Direito",  # formado em Direito, ainda sem OAB
+}
+
 # O que buscar nos sites de vagas. Cada termo vira uma busca local + uma remota.
+# Perfil TI:
 TERMOS = [
     "estágio TI",
     "estágio desenvolvimento",
@@ -36,6 +44,17 @@ TERMOS = [
     "analista de suporte júnior",
     "suporte técnico TI",
     "QA júnior",
+]
+# Perfil Direito (formado, sem OAB):
+TERMOS_DIREITO = [
+    "assistente jurídico",
+    "analista jurídico",
+    "auxiliar jurídico",
+    "assessor jurídico",
+    "bacharel em direito",
+    "paralegal",
+    "analista de contratos",
+    "analista de licitações",
 ]
 
 # Sites de carreira de empresas: cole o link da página "Trabalhe conosco".
@@ -54,6 +73,14 @@ EMPRESAS = [
     ("Zenvia", "https://zenvia.gupy.io"),
     ("Grupo RBS", "https://gruporbs.gupy.io"),
     ("Indicium", "https://indicium.inhire.app/vagas"),
+    ("Sicredi", "https://sicredi.gupy.io"),
+    ("Unicred", "https://unicred.gupy.io"),
+    ("Lojas Renner", "https://renner.gupy.io"),
+    ("Softplan", "https://softplan.gupy.io"),
+    ("Thoughtworks", "https://job-boards.greenhouse.io/thoughtworks"),
+    ("Stone", "https://job-boards.greenhouse.io/stone"),
+    ("VTEX", "https://job-boards.greenhouse.io/vtex"),
+    ("QuintoAndar", "https://job-boards.greenhouse.io/quintoandar"),
 ]
 
 # Busca presencial/híbrida perto de você. Vagas remotas do Brasil todo entram sempre.
@@ -69,6 +96,10 @@ CIDADES_PERTO = [
 # Sites de vagas. Se algum só der erro, é só tirar da lista.
 FONTES_JOBSPY = ["indeed", "linkedin", "glassdoor"]
 USAR_GUPY = True
+USAR_VAGAS_COM_BR = True   # Vagas.com.br
+USAR_REMOTAR = True        # Remotar: só vagas remotas
+USAR_TRAMPOS = True        # Trampos.co
+USAR_CONCURSOS = True      # aba Concursos (configuração em concursos.py)
 
 # Repositórios do GitHub onde as vagas são publicadas como issues. Só entram as remotas.
 REPOS_VAGAS = [
@@ -137,6 +168,25 @@ AREA_TI_DESCRICAO = [
     "analise de dados", "power bi", "javascript", "java", "linux",
 ]
 
+# --- Perfil Direito (formado, sem OAB) ---
+# Palavras que dizem que a vaga é da área jurídica (procuradas no título).
+AREA_DIREITO = [
+    "juridico", "juridica", "juridicos", "juridicas", "direito", "advocacia", "advocaticio",
+    "paralegal", "legal", "legal ops", "contratos", "contratual", "compliance", "licitacao",
+    "licitacoes", "contencioso", "societario", "processual", "processos judiciais",
+    "cartorio", "notarial", "registral", "escrevente", "tabelionato", "law",
+]
+# Se o título não diz a área, estas na descrição indicam que é pra quem é formado em Direito.
+AREA_DIREITO_DESCRICAO = [
+    "bacharel em direito", "bacharelado em direito", "formacao em direito", "graduacao em direito",
+    "graduado em direito", "graduada em direito", "formado em direito", "formada em direito",
+    "superior completo em direito", "ciencias juridicas", "curso de direito",
+]
+# Cargos que exigem OAB: caem em "Fora" no perfil Direito.
+CARGO_PEDE_OAB = ["advogado", "advogada", "advogados", "lawyer", "attorney", "counsel", "procurador", "procuradora"]
+# Cargos de outra área, mesmo com palavra jurídica no título ("Analista de Contratos - Área Contábil").
+CARGO_NAO_DIREITO = ["contabil", "contabeis", "contabilidade", "vendas", "vendedor", "vendedora", "sales"]
+
 # =====================================================================
 
 BASE = Path(__file__).resolve().parent
@@ -153,7 +203,12 @@ ANOS_PLAUSIVEIS = 10  # acima disso é a história da empresa, não um requisito
 NOMES_FONTES = {
     "indeed": "Indeed", "linkedin": "LinkedIn", "glassdoor": "Glassdoor",
     "google": "Google", "gupy": "Gupy", "empresas": "Sites das empresas", "github": "GitHub",
+    "vagascombr": "Vagas.com.br", "remotar": "Remotar", "trampos": "Trampos",
 }
+# Estágio de faculdade (o trainee é pra quem já se formou).
+ESTAGIO_ESTUDANTE = [p for p in ESTAGIO if p != "trainee"]
+POS_GRADUACAO = ["pos-graduacao", "pos graduacao", "pos-graduando", "pos graduando", "pos-graduanda",
+                 "pos graduanda", "residencia juridica", "residente juridico"]
 UFS = ("ac al ap am ba ce df es go ma mt ms mg pa pb pr pe pi rj rn rs ro rr sc sp se to").split()
 ESTADOS = [
     "acre", "alagoas", "amapa", "amazonas", "bahia", "ceara", "distrito federal",
@@ -216,13 +271,19 @@ def data_de_ms(ms):
         return ""
 
 
-def nova_vaga(titulo, empresa, local, link, fonte, data="", remoto=False, descricao=""):
+def nova_vaga(titulo, empresa, local, link, fonte, data="", remoto=False, descricao="", perfil=None):
+    """perfil: qual perfil fez a busca que achou a vaga (None = veio sem busca, ex.: site da empresa)."""
     return {
         "titulo": str(titulo or "").strip(), "empresa": str(empresa or "").strip(),
         "local": str(local or "").strip(), "link": str(link or "").strip(),
         "fontes": [fonte], "data": str(data or "")[:10], "remoto": bool(remoto),
-        "descricao": str(descricao or ""),
+        "descricao": str(descricao or ""), "buscas": [perfil] if perfil else [],
     }
+
+
+def buscas():
+    """(termo, perfil) de todos os perfis."""
+    return [(t, "ti") for t in TERMOS] + [(t, "direito") for t in TERMOS_DIREITO]
 
 
 def sessao():
@@ -256,7 +317,7 @@ def coletar_jobspy(status):
     vagas = []
     for fonte in FONTES_JOBSPY:
         achadas, erros, tentativas = 0, 0, 0
-        for termo in TERMOS:
+        for termo, perfil in buscas():
             for remoto in (False, True):
                 if erros >= 3 and achadas == 0:
                     break  # a fonte está bloqueando; não adianta insistir
@@ -293,7 +354,7 @@ def coletar_jobspy(status):
                     vagas.append(nova_vaga(
                         titulo, limpo(r.get("company")), local,
                         limpo(r.get("job_url")) or limpo(r.get("job_url_direct")),
-                        fonte, limpo(r.get("date_posted")), rem, limpo(r.get("description")),
+                        fonte, limpo(r.get("date_posted")), rem, limpo(r.get("description")), perfil,
                     ))
                     achadas += 1
                 time.sleep(2)
@@ -311,12 +372,12 @@ def coletar_jobspy(status):
 
 # ---------- portal da Gupy ----------
 
-def vaga_gupy(j, empresa_padrao=""):
+def vaga_gupy(j, perfil=None):
     local = ", ".join(x for x in [j.get("city"), j.get("state")] if x)
     return nova_vaga(
-        j.get("name") or "", j.get("careerPageName") or empresa_padrao,
+        j.get("name") or "", j.get("careerPageName") or "",
         local, j.get("jobUrl") or "", "gupy", j.get("publishedDate") or "",
-        j.get("workplaceType") == "remote", j.get("description") or "",
+        j.get("workplaceType") == "remote", j.get("description") or "", perfil,
     )
 
 
@@ -324,12 +385,12 @@ def coletar_gupy(status):
     s = sessao()
     vagas, falhas, motivos = [], 0, set()
 
-    for termo in TERMOS:
+    for termo, perfil in buscas():
         params = {"jobName": termo, "limit": RESULTADOS_POR_BUSCA, "offset": 0}
         try:
             r = s.get(GUPY_URL, params=params, timeout=30)
             r.raise_for_status()
-            vagas += [vaga_gupy(j) for j in r.json()["data"]]
+            vagas += [vaga_gupy(j, perfil) for j in r.json()["data"]]
         except Exception as e:
             falhas += 1
             codigo = getattr(getattr(e, "response", None), "status_code", None)
@@ -377,7 +438,7 @@ def vaga_github(j):
     # a última menção é a empresa: "Java Júnior (Pagamentos via Pix) | Confidencial (via Sylision)"
     empresas = re.findall(r"(?:@|\b(?:na|no|at|via)\b)\s+([A-Z0-9][^|@()–—]{1,40})", titulo)
     return nova_vaga(titulo, empresas[-1].strip(" -") if empresas else "", local, j.get("html_url"),
-                     "github", j.get("created_at") or "", True, corpo)
+                     "github", j.get("created_at") or "", True, corpo, "ti")
 
 
 def coletar_github(status):
@@ -404,6 +465,118 @@ def coletar_github(status):
         texto += " · problema: " + ", ".join(falhas)
     status["github"] = texto
     print(f"GitHub: {texto}")
+    return vagas
+
+
+# ---------- Vagas.com.br, Remotar e Trampos ----------
+
+def data_relativa(texto, hoje=None):
+    """'Hoje', 'Ontem', 'Há 3 dias' ou '26/10/2026' -> data ISO."""
+    hoje = hoje or datetime.now(FUSO).date()
+    t = norm(texto).strip()
+    m = re.search(r"(\d{2})/(\d{2})/(\d{4})", t)
+    if m:
+        return f"{m.group(3)}-{m.group(2)}-{m.group(1)}"
+    if "hoje" in t:
+        return hoje.isoformat()
+    if "ontem" in t:
+        return (hoje - timedelta(days=1)).isoformat()
+    m = re.search(r"(\d+)\s+dias?", t)
+    return (hoje - timedelta(days=int(m.group(1)))).isoformat() if m else ""
+
+
+def html_texto(trecho):
+    return re.sub(r"\s+", " ", htmllib.unescape(re.sub(r"<[^>]+>", " ", trecho or ""))).strip()
+
+
+def coletar_lista(status, chave, buscar, busca_solta=False):
+    """Roda buscar(sessão, termo, perfil) pra cada busca e resume o resultado em status[chave].
+    busca_solta: o site devolve muita coisa que não tem nada a ver com o termo; aí só fica
+    o que servir pra algum perfil (como nos sites das empresas)."""
+    s = sessao()
+    vagas, falhas, motivos = [], 0, set()
+    for termo, perfil in buscas():
+        try:
+            achadas = buscar(s, termo, perfil)
+            if busca_solta:
+                for v in achadas:
+                    v["buscas"] = []
+            vagas += achadas
+        except Exception as e:
+            falhas += 1
+            codigo = getattr(getattr(e, "response", None), "status_code", None)
+            motivos.add(f"HTTP {codigo}" if codigo else type(e).__name__)
+            print(f"  [{chave}] '{termo}' -> {type(e).__name__}: {str(e)[:150]}")
+            if falhas >= 3 and not vagas:
+                break  # está bloqueando: não adianta insistir
+        time.sleep(1)
+    if vagas:
+        status[chave] = f"{len(vagas)} encontradas"
+        if falhas:
+            status[chave] += f" · problema: {falhas} buscas falharam"
+    else:
+        status[chave] = "bloqueado (" + ", ".join(sorted(motivos)) + ")" if motivos else "nada encontrado"
+    print(f"{NOMES_FONTES[chave]}: {status[chave]}")
+    return vagas
+
+
+def buscar_vagascombr(s, termo, perfil):
+    slug = re.sub(r"[^a-z0-9]+", "-", norm(termo)).strip("-")
+    r = s.get(f"https://www.vagas.com.br/vagas-de-{slug}", params={"ordenar_por": "mais_recentes"},
+              headers={"Accept": "text/html"}, timeout=30)
+    r.raise_for_status()
+    vagas = []
+    for li in re.findall(r'<li class="vaga[ "].*?</footer>', r.text, re.S):
+        link = re.search(r'class="link-detalhes-vaga"[^>]*title="([^"]+)"[^>]*href="([^"]+)"', li)
+        if not link:
+            continue
+        empresa = re.search(r'class="emprVaga">(.*?)</span>', li, re.S)
+        local = re.search(r'class="vaga-local">(.*?)<div', li, re.S) or re.search(r'class="vaga-local">(.*?)</div>', li, re.S)
+        quando = re.search(r'class="data-publicacao">(.*?)</span>', li, re.S)
+        detalhes = re.search(r'class="detalhes">(.*?)</div>', li, re.S)
+        local = html_texto(local.group(1)) if local else ""
+        titulo = htmllib.unescape(link.group(1))
+        vagas.append(nova_vaga(
+            titulo, html_texto(empresa.group(1)) if empresa else "", local.replace(" / ", ", "),
+            "https://www.vagas.com.br" + link.group(2), "vagascombr",
+            data_relativa(html_texto(quando.group(1))) if quando else "",
+            tem(REMOTO, norm(local + " " + titulo)), html_texto(detalhes.group(1)) if detalhes else "", perfil,
+        ))
+    return vagas
+
+
+def buscar_remotar(s, termo, perfil):
+    r = s.get("https://api.remotar.com.br/jobs", params={"search": termo}, timeout=30)
+    r.raise_for_status()
+    vagas = []
+    for j in r.json().get("data", []):
+        if j.get("expired") or j.get("active") is False:
+            continue
+        local = ", ".join(x for x in [j.get("city"), j.get("state")] if x)
+        desc = html_texto(j.get("description")) + " " + " ".join(
+            x.get("description") or "" for x in j.get("jobRequirements") or [])
+        vagas.append(nova_vaga(
+            j.get("title"), (j.get("company") or {}).get("name") or j.get("companyDisplayName") or "",
+            local or "Remoto", f"https://remotar.com.br/job/{j.get('id')}", "remotar",
+            j.get("createdAt") or "", j.get("type") == "remote", desc, perfil,
+        ))
+    return vagas
+
+
+def buscar_trampos(s, termo, perfil):
+    r = s.get("https://trampos.co/api/v2/opportunities", params={"tr": termo}, timeout=30)
+    r.raise_for_status()
+    vagas = []
+    for j in r.json().get("opportunities", []):
+        empresa = j.get("custom_company_name") or (j.get("company") or {}).get("name") or ""
+        local = ", ".join(x for x in [j.get("city"), j.get("state")] if x)
+        remoto = bool(j.get("home_office")) and not j.get("hybrid")
+        titulo = j.get("name") or ""
+        if j.get("type_slug") == "estagio" and not tem(ESTAGIO, norm(titulo)):
+            titulo = f"{titulo} (Estágio)"  # o tipo vem separado do título
+        vagas.append(nova_vaga(titulo, empresa, local or ("Remoto" if remoto else ""),
+                               f"https://trampos.co/oportunidades/{j.get('id')}", "trampos",
+                               j.get("published_at") or "", remoto, "", perfil))
     return vagas
 
 
@@ -639,6 +812,64 @@ def classificar(v):
     return "talvez", "Área de TI, nível não informado no título"
 
 
+def situacao_oab(d):
+    """'' (não pede), 'diferencial', 'obrigatoria' ou 'cita' (fala da OAB sem deixar claro)."""
+    if not re.search(r"\boab\b", d):
+        return ""
+    if re.search(r"sem oab|com ou sem (a )?oab|oab (nao e|nao sera) (obrigatori|necessari)"
+                 r"|nao (e |sera )?(obrigatori|necessari)[oa]s? (ter |possuir )?(a )?oab", d):
+        return ""
+    if re.search(r"\boab\b[^.;]{0,40}(diferencial|desejavel)|(diferencial|desejavel)[^.;]{0,40}\boab\b", d):
+        return "diferencial"
+    if re.search(r"\boab ativa|\boab regular|(inscricao|registro|carteira|cadastro)( ativ[ao]| regular)* "
+                 r"(na|da|junto a) oab|inscrit[oa]s? na oab|\boab\b[^.;]{0,20}obrigatori"
+                 r"|obrigatori[oa][^.;]{0,30}\boab\b|(possuir|ter|com) (a |registro na |inscricao na )?oab\b"
+                 r"|advogad[oa]s? (regularmente )?inscrit", d):
+        return "obrigatoria"
+    return "cita"
+
+
+def classificar_direito(v):
+    """Perfil Direito: formado, sem OAB."""
+    t = norm(v["titulo"])
+    d = norm(v["descricao"][:6000])
+
+    if tem(NIVEL_RUIM, t) and not tem(NIVEL_BOM, t):
+        return "descartada", "Nível acima do seu (pleno/sênior ou liderança)"
+    if tem(CARGO_PEDE_OAB, t):
+        return "descartada", "Cargo de advogado: pede OAB"
+    if tem(CARGO_NAO_DIREITO, t):
+        return "descartada", "Fora da área jurídica"
+
+    area_titulo = tem(AREA_DIREITO, t)
+    if not area_titulo and not tem(AREA_DIREITO_DESCRICAO, d):
+        return "descartada", "Fora da área jurídica"
+
+    if tem(ESTAGIO_ESTUDANTE, t):
+        if tem(POS_GRADUACAO, t + " " + d):
+            return "talvez", "Estágio de pós: pede matrícula numa pós-graduação"
+        return "descartada", "Estágio é pra quem ainda está na faculdade"
+
+    oab = situacao_oab(d)
+    if oab == "obrigatoria":
+        return "descartada", "Pede OAB"
+    anos = anos_pedidos(d)
+    if anos > ANOS_EXPERIENCIA_MAX:
+        return "talvez", f"Pede {anos} anos de experiência"
+    if oab == "diferencial":
+        return "talvez", "OAB conta como diferencial"
+    if oab == "cita":
+        return "talvez", "Cita a OAB: confira se é obrigatória"
+    if tem(NIVEL_RUIM, t):
+        return "talvez", "Aceita júnior, mas também cita nível acima"
+    if area_titulo:
+        return "encaixa", "Área jurídica, sem exigir OAB"
+    return "talvez", "A área jurídica só aparece na descrição"
+
+
+CLASSIFICADORES = {"ti": classificar, "direito": classificar_direito}
+
+
 def chave(v):
     empresa = re.sub(r"\b(ltda|s\.?a\.?|me|eireli)\b", "", norm(v["empresa"]))
     return re.sub(r"[^a-z0-9]", "", norm(v["titulo"])) + "|" + re.sub(r"[^a-z0-9]", "", empresa)
@@ -661,6 +892,11 @@ def tratar(brutas, vistas, agora):
             for f in v["fontes"]:
                 if f not in atual["fontes"]:
                     atual["fontes"].append(f)
+            for p in v["buscas"]:
+                if p not in atual["buscas"]:
+                    atual["buscas"].append(p)
+            if len(v["descricao"]) > len(atual["descricao"]):
+                atual["descricao"] = v["descricao"]
             if not atual["data"] or (v["data"] and v["data"] > atual["data"]):
                 atual["data"] = v["data"]
             continue
@@ -670,19 +906,26 @@ def tratar(brutas, vistas, agora):
     limite_nova = agora - timedelta(hours=24)
     saida = []
     for k, v in unicas.items():
-        v["classe"], v["motivo"] = classificar(v)
-        # das empresas vem tudo (até vaga de vendedor): só fica o que é de TI
-        if v["fontes"] == ["empresas"] and v["classe"] == "descartada":
+        # cada perfil vê as vagas das suas buscas (inclusive as "Fora", pra conferir) e as
+        # das outras fontes que servem pra ele. Das empresas vem tudo (até vaga de vendedor):
+        # só fica o que serve pra algum perfil.
+        v["perfis"] = {}
+        for perfil, func in CLASSIFICADORES.items():
+            classe, motivo = func(v)
+            if perfil in v["buscas"] or classe != "descartada":
+                v["perfis"][perfil] = [classe, motivo]
+        if not v["perfis"]:
             continue
         v["favorita"] = any(f in norm(v["empresa"]) for f in EMPRESAS_FAVORITAS)
         primeira = vistas.setdefault(k, agora.isoformat())
         v["nova"] = datetime.fromisoformat(primeira) >= limite_nova
         v["fontes"] = [NOMES_FONTES.get(f, f) for f in v["fontes"]]
-        del v["descricao"]  # não vai pra página
+        del v["descricao"], v["buscas"]  # não vão pra página
         saida.append(v)
 
     peso = {"encaixa": 2, "talvez": 1, "descartada": 0}
-    saida.sort(key=lambda v: (peso[v["classe"]], v["favorita"], v["nova"], v["data"]), reverse=True)
+    melhor = lambda v: max(peso[c] for c, _ in v["perfis"].values())
+    saida.sort(key=lambda v: (melhor(v), v["favorita"], v["nova"], v["data"]), reverse=True)
 
     # esquece vagas vistas há mais de 60 dias que já saíram do ar. Sem isso, uma vaga
     # sem data (as de empresa na Gupy) voltaria a aparecer como "Nova" a cada 60 dias.
@@ -694,12 +937,15 @@ def tratar(brutas, vistas, agora):
 
 # ---------- página ----------
 
-def gerar_pagina(vagas, status, agora, pasta):
+def gerar_pagina(vagas, status, concursos, status_concursos, agora, pasta):
     modelo = (BASE / "template.html").read_text(encoding="utf-8")
     dados = {
         "atualizado": agora.isoformat(),
+        "perfis": PERFIS,
         "fontes": [{"nome": NOMES_FONTES.get(f, f), "status": s} for f, s in status.items()],
+        "fontesConcursos": [{"nome": f, "status": s} for f, s in status_concursos.items()],
         "vagas": vagas,
+        "concursos": concursos,
     }
     js = json.dumps(dados, ensure_ascii=False).replace("</", "<\\/")
     pasta.mkdir(parents=True, exist_ok=True)
@@ -710,7 +956,7 @@ def exemplo():
     """Vagas inventadas pra testar a página sem internet."""
     hoje = date.today()
     d = lambda n: (hoje - timedelta(days=n)).isoformat()
-    return [
+    ti = [
         nova_vaga("Estágio em Engenharia de Dados", "Indicium", "Remoto", "https://example.com/1", "gupy", d(0), True, "Cursando SI ou Computação. SQL e Python."),
         nova_vaga("Desenvolvedor Júnior Python", "Empresa Exemplo", "Santa Maria, RS", "https://example.com/2", "indeed", d(1), False, "Python, Django."),
         nova_vaga("Desenvolvedor Junior Python", "Empresa Exemplo Ltda", "Santa Maria, RS", "https://example.com/2b", "linkedin", d(1), False, ""),
@@ -729,6 +975,19 @@ def exemplo():
         nova_vaga("Account Executive", "CI&T", "Brazil", "https://example.com/15", "empresas", d(2), True, ""),
         nova_vaga("Data Intern", "CI&T", "Colombia", "https://example.com/16", "empresas", d(2), True, ""),
     ]
+    for v in ti:
+        if v["fontes"] != ["empresas"]:
+            v["buscas"] = ["ti"]
+    direito = [
+        nova_vaga("Assistente Jurídico", "Escritório Exemplo", "Santa Maria, RS", "https://example.com/20", "vagascombr", d(0), False, "Bacharel em Direito. Rotinas de contencioso cível.", "direito"),
+        nova_vaga("Analista Jurídico Júnior", "Sicredi", "Remoto", "https://example.com/21", "gupy", d(1), True, "Formação em Direito. OAB será um diferencial.", "direito"),
+        nova_vaga("Advogado Trabalhista", "Banca Sul", "Santa Maria, RS", "https://example.com/22", "indeed", d(2), False, "OAB ativa.", "direito"),
+        nova_vaga("Assessor Jurídico", "Construtora Centro", "Santa Maria, RS", "https://example.com/23", "linkedin", d(3), False, "Bacharel em Direito com inscrição ativa na OAB.", "direito"),
+        nova_vaga("Estágio em Direito", "Escritório Exemplo", "Santa Maria, RS", "https://example.com/24", "gupy", d(1), False, "Cursando Direito a partir do 5º semestre.", "direito"),
+        nova_vaga("Analista de Contratos", "Remotar Exemplo", "Remoto", "https://example.com/25", "remotar", d(4), True, "Graduação em Direito. Elaboração e revisão de contratos.", "direito"),
+        nova_vaga("Paralegal", "Legal Tech", "Remoto", "https://example.com/26", "trampos", d(0), True, "", "direito"),
+    ]
+    return ti + direito
 
 
 def main():
@@ -742,32 +1001,51 @@ def main():
     except Exception:
         vistas = {}
 
-    status = {}
+    status, status_concursos, concursos = {}, {}, []
     if demo:
+        import concursos as mod_concursos
         brutas = exemplo()
         status = {"indeed": "5 encontradas", "linkedin": "4 encontradas", "glassdoor": "nada encontrado",
-                  "gupy": "bloqueado (HTTP 403)", "empresas": "3 encontradas em 1 empresas"}
+                  "gupy": "bloqueado (HTTP 403)", "empresas": "3 encontradas em 1 empresas",
+                  "vagascombr": "2 encontradas", "remotar": "2 encontradas", "trampos": "1 encontradas"}
+        concursos, status_concursos = mod_concursos.exemplo(agora)
     else:
         brutas = []
         if FONTES_JOBSPY:
             brutas += coletar_jobspy(status)
         if USAR_GUPY:
             brutas += coletar_gupy(status)
+        if USAR_VAGAS_COM_BR:
+            brutas += coletar_lista(status, "vagascombr", buscar_vagascombr, busca_solta=True)
+        if USAR_REMOTAR:
+            brutas += coletar_lista(status, "remotar", buscar_remotar, busca_solta=True)
+        if USAR_TRAMPOS:
+            brutas += coletar_lista(status, "trampos", buscar_trampos)
         if REPOS_VAGAS:
             brutas += coletar_github(status)
         if EMPRESAS:
             brutas += coletar_empresas(status)
+        if USAR_CONCURSOS:
+            import concursos as mod_concursos
+            try:
+                concursos = mod_concursos.coletar(status_concursos, agora, pasta)
+            except Exception as e:  # um erro nos concursos não pode derrubar as vagas
+                status_concursos["Concursos"] = f"erro: {type(e).__name__}"
+                print(f"Concursos: erro {type(e).__name__}: {e}")
 
     vagas = tratar(brutas, vistas, agora)
     if not vagas:
         # falha o workflow (o GitHub avisa por e-mail) e mantém a página anterior no ar
         sys.exit(f"Nenhuma vaga nesta rodada, página mantida. Fontes: {status}")
-    gerar_pagina(vagas, status, agora, pasta)
+    gerar_pagina(vagas, status, concursos, status_concursos, agora, pasta)
     arquivo_vistas.write_text(json.dumps(vistas, ensure_ascii=False, indent=0), encoding="utf-8")
 
-    cont = {c: sum(v["classe"] == c for v in vagas) for c in ("encaixa", "talvez", "descartada")}
-    print(f"\n{len(brutas)} coletadas -> {len(vagas)} únicas | "
-          f"encaixa {cont['encaixa']}, talvez {cont['talvez']}, descartadas {cont['descartada']}")
+    print(f"\n{len(brutas)} coletadas -> {len(vagas)} únicas")
+    for perfil, nome in PERFIS.items():
+        for tipo, itens in (("vagas", vagas), ("concursos", concursos)):
+            cont = {c: sum(1 for v in itens if v["perfis"].get(perfil, [""])[0] == c)
+                    for c in ("encaixa", "talvez", "descartada")}
+            print(f"  {nome} · {tipo}: encaixa {cont['encaixa']}, talvez {cont['talvez']}, fora {cont['descartada']}")
     print(f"Página: {pasta / 'index.html'}")
 
 
