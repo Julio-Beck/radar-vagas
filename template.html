@@ -235,7 +235,6 @@ function itensDoPerfil() {
   return lista.filter(x => x.perfis[estado.perfil]);
 }
 const classeDe = x => x.perfis[estado.perfil][0];
-const salarioDe = x => x.perfis[estado.perfil][3] || x.salario || 0;
 
 function cabecalho() {
   // a maior pausa normal entre buscas é de 12h (18h17 às 6h17)
@@ -287,34 +286,39 @@ function cartaoVaga(v) {
   </a>`;
 }
 
+const EDITAL = {
+  "lido": "edital lido",
+  "bloqueado": "edital não lido: o site da banca bloqueia robôs",
+  "sem pdf": "edital não encontrado",
+  "pdf escaneado": "edital é imagem escaneada",
+  "sem link": "edital não encontrado",
+};
+
 function cartaoConcurso(c) {
-  const [classe, motivo, cargos, doCargo] = c.perfis[estado.perfil];
+  const [classe, motivo, cargos, doCargo, origem] = c.perfis[estado.perfil];
   let salario;
-  if (doCargo) salario = `${brl(doCargo)}<small>salário do cargo</small>`;
-  else if (c.salario) {
-    // o edital costuma dar só a faixa: o maior salário pode ser de outro cargo
-    const nota = c.estagio ? "bolsa"
-               : c.salarioMin ? `maior salário do edital · os cargos pagam a partir de ${brl(c.salarioMin)}`
-               : "maior salário do edital · pode ser de outro cargo";
-    salario = `até ${esc(c.salarioTexto)}<small>${nota}</small>`;
-  }
-  const local = !c.uf ? "Nacional · vagas pelo país"
-              : c.cidade ? `${c.cidade}, ${c.uf}`
-              : `${UF_NOME[c.uf] || c.uf} · local no edital`;
+  if (doCargo) salario = `${brl(doCargo)}<small>salário do cargo · ${origem === "edital" ? "conferido no edital" : "segundo a notícia"}</small>`;
+  else if (c.salario && c.estagio) salario = `${esc(c.salarioTexto)}<small>bolsa</small>`;
+  const local = !c.uf ? (c.cidade ? `${c.cidade} · órgão nacional` : "Nacional · vagas pelo país")
+              : c.cidade ? `${c.cidade} · ${c.uf}`
+              : `${UF_NOME[c.uf] || c.uf} · cidade não informada`;
   const p = prazo(c.ate);
-  const meta = [c.vagas, c.escolaridade, c.fonte].filter(Boolean).join(" · ");
+  const edital = c.edital === "lido" && c.editalOficial ? "edital lido no site oficial" : (EDITAL[c.edital] || "");
+  const meta = [c.vagas, c.fonte, edital].filter(Boolean).join(" · ");
   return `<a class="vaga concurso" href="${esc(c.link)}" target="_blank" rel="noopener">
     <div class="tags">
       <span class="selo ${classe}">${ROTULO[classe]}</span>
       ${c.nova ? '<span class="nova">Novo</span>' : ""}
       ${c.estagio ? '<span class="fav">Estágio</span>' : ""}
     </div>
-    ${salario ? `<p class="salario">${salario}</p>` : '<p class="salario sem">Salário no edital</p>'}
+    ${salario ? `<p class="salario">${salario}</p>` : `<p class="salario sem">Salário do cargo não confirmado<small>${
+      c.salarioMin ? `o edital paga de ${brl(c.salarioMin)} a ${esc(c.salarioTexto)}, conforme o cargo`
+      : c.salario ? `o maior salário do edital é ${esc(c.salarioTexto)} (pode ser de outro cargo)` : "confira no edital"}</small></p>`}
     <h2>${esc(c.orgao)}</h2>
-    <p class="cidade">${esc(local)}</p>
-    ${cargos.length ? `<p class="cargos"><b>${c.estagio ? "Cursos" : "Cargos"}:</b> ${esc(cargos.join(" · "))}</p>` : ""}
+    <p class="cidade" title="${esc((c.cidades || []).join(", "))}">${esc(local)}</p>
+    ${cargos.length ? `<p class="cargos"><b>Cargos pra você:</b> ${esc(cargos.join(" · "))}</p>` : ""}
+    <p class="motivo">${esc(motivo)}</p>
     <p class="meta">${p ? `<span class="${p.perto ? "fecha" : ""}">${esc(p.texto)}</span> · ` : ""}${esc(meta)}</p>
-    ${classe === "encaixa" ? "" : `<p class="motivo">${esc(motivo)}</p>`}
   </a>`;
 }
 
@@ -340,8 +344,11 @@ function vazio() {
 const PESO = { encaixa: 2, talvez: 1, descartada: 0 };
 function ordenar(lista) {
   if (estado.aba === "concursos") {
-    // o salário é o que mais importa; empate: o que fecha antes
-    return lista.sort((a, b) => salarioDe(b) - salarioDe(a) || String(a.ate || "9").localeCompare(String(b.ate || "9")));
+    // o salário é o que mais importa: primeiro os de salário do cargo confirmado, do maior pro menor;
+    // depois os outros, pelo menor salário do edital; empate: o que fecha antes
+    const conhecido = x => x.perfis[estado.perfil][3] || (x.estagio ? x.salario : 0) || 0;
+    return lista.sort((a, b) => (conhecido(b) > 0) - (conhecido(a) > 0) || conhecido(b) - conhecido(a) ||
+      (b.salarioMin || 0) - (a.salarioMin || 0) || String(a.ate || "9").localeCompare(String(b.ate || "9")));
   }
   return lista.sort((a, b) =>
     PESO[classeDe(b)] - PESO[classeDe(a)] || (b.favorita - a.favorita) || (b.nova - a.nova) ||

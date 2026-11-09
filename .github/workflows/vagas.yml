@@ -16,7 +16,7 @@ concurrency:
 jobs:
   buscar:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v5
 
@@ -26,7 +26,10 @@ jobs:
           cache: pip
 
       - name: Instalar dependências
-        run: pip install -r requirements.txt
+        run: |
+          pip install -r requirements.txt
+          # navegador pros sites oficiais que só abrem com JavaScript (ex.: STJ)
+          python -m playwright install --with-deps chromium
 
       - name: Buscar vagas e gerar a página
         run: python vagas.py

@@ -26,8 +26,83 @@ from vagas import norm, sessao, tem
 UFS = ["RS", "SC", "PR"]
 INCLUIR_NACIONAIS = True  # concursos federais com vagas no país todo
 
-# Quantos editais novos abrir por rodada (os já abertos ficam guardados).
+# Quantos editais novos procurar por rodada e por quanto tempo (os já lidos ficam guardados;
+# o que não der tempo fica pra próxima rodada).
 EDITAIS_POR_RODADA = 200
+MINUTOS_PROCURANDO_EDITAIS = 20
+VERSAO_EDITAL = 1  # aumente pra reler todos os editais depois de mudar as listas abaixo
+
+# Sites oficiais que divulgam os próprios concursos e estágios: (nome, site, UF, cidade).
+# UF vazia = órgão nacional. O radar entra no site, acha a página de concursos/estágios e
+# só mostra o que tiver edital com inscrição ainda aberta.
+ORGAOS_OFICIAIS = [
+    # nacionais
+    ("STJ", "https://www.stj.jus.br", "", "Brasília"),
+    ("STF", "https://portal.stf.jus.br", "", "Brasília"),
+    ("TST", "https://www.tst.jus.br", "", "Brasília"),
+    ("TSE", "https://www.tse.jus.br", "", "Brasília"),
+    ("CNJ", "https://www.cnj.jus.br", "", "Brasília"),
+    ("Senado Federal", "https://www12.senado.leg.br", "", "Brasília"),
+    ("Câmara dos Deputados", "https://www.camara.leg.br", "", "Brasília"),
+    ("TCU", "https://portal.tcu.gov.br", "", ""),
+    ("MPF", "https://www.mpf.mp.br", "", ""),
+    ("Caixa", "https://www.caixa.gov.br", "", ""),
+    ("EBSERH", "https://www.gov.br/ebserh", "", ""),
+    ("IBGE", "https://www.ibge.gov.br", "", ""),
+    # Rio Grande do Sul
+    ("TRF4", "https://www.trf4.jus.br", "RS", "Porto Alegre"),
+    ("Justiça Federal do RS", "https://www.jfrs.jus.br", "RS", ""),
+    ("TRT4", "https://www.trt4.jus.br", "RS", "Porto Alegre"),
+    ("TRE-RS", "https://www.tre-rs.jus.br", "RS", "Porto Alegre"),
+    ("TJRS", "https://www.tjrs.jus.br", "RS", ""),
+    ("MPRS", "https://www.mprs.mp.br", "RS", ""),
+    ("Defensoria Pública do RS", "https://www.defensoria.rs.def.br", "RS", ""),
+    ("PGE-RS", "https://www.pge.rs.gov.br", "RS", "Porto Alegre"),
+    ("TCE-RS", "https://tcers.tc.br", "RS", "Porto Alegre"),
+    ("Assembleia Legislativa do RS", "https://ww4.al.rs.gov.br", "RS", "Porto Alegre"),
+    ("Banrisul", "https://www.banrisul.com.br", "RS", ""),
+    ("PROCERGS", "https://www.procergs.rs.gov.br", "RS", "Porto Alegre"),
+    ("UFSM", "https://www.ufsm.br", "RS", "Santa Maria"),
+    ("UFRGS", "https://www.ufrgs.br", "RS", "Porto Alegre"),
+    ("UFPel", "https://portal.ufpel.edu.br", "RS", "Pelotas"),
+    ("FURG", "https://www.furg.br", "RS", "Rio Grande"),
+    ("Unipampa", "https://unipampa.edu.br", "RS", ""),
+    ("UFCSPA", "https://ufcspa.edu.br", "RS", "Porto Alegre"),
+    ("IFRS", "https://ifrs.edu.br", "RS", ""),
+    ("IF Farroupilha", "https://www.iffarroupilha.edu.br", "RS", ""),
+    ("IFSul", "https://www.ifsul.edu.br", "RS", ""),
+    ("Prefeitura de Santa Maria", "https://www.santamaria.rs.gov.br", "RS", "Santa Maria"),
+    ("Prefeitura de Porto Alegre", "https://prefeitura.poa.br", "RS", "Porto Alegre"),
+    ("Procempa", "https://www.procempa.com.br", "RS", "Porto Alegre"),
+    # Santa Catarina
+    ("TJSC", "https://www.tjsc.jus.br", "SC", ""),
+    ("TRT12", "https://portal.trt12.jus.br", "SC", "Florianópolis"),
+    ("MPSC", "https://www.mpsc.mp.br", "SC", ""),
+    ("UFSC", "https://ufsc.br", "SC", "Florianópolis"),
+    ("IFSC", "https://www.ifsc.edu.br", "SC", ""),
+    ("CIASC", "https://www.ciasc.sc.gov.br", "SC", "Florianópolis"),
+    # Paraná
+    ("TJPR", "https://www.tjpr.jus.br", "PR", ""),
+    ("TRT9", "https://www.trt9.jus.br", "PR", "Curitiba"),
+    ("MPPR", "https://mppr.mp.br", "PR", ""),
+    ("UFPR", "https://ufpr.br", "PR", "Curitiba"),
+    ("UTFPR", "https://www.utfpr.edu.br", "PR", ""),
+    ("IFPR", "https://ifpr.edu.br", "PR", ""),
+    ("Celepar", "https://www.celepar.pr.gov.br", "PR", "Curitiba"),
+]
+MINUTOS_NOS_SITES_OFICIAIS = 10
+
+# Só conta como site oficial o endereço de governo (ou um dos domínios abaixo) com HTTPS.
+SUFIXOS_OFICIAIS = (".gov.br", ".jus.br", ".mp.br", ".leg.br", ".mil.br", ".def.br", ".tc.br", ".edu.br")
+DOMINIOS_OFICIAIS = ["ufsm.br", "ufrgs.br", "furg.br", "ufsc.br", "ufpr.br", "banrisul.com.br",
+                     "prefeitura.poa.br", "procempa.com.br"]
+# Bancas que organizam concursos: os sites oficiais costumam mandar o edital pra elas.
+BANCAS = ["cebraspe.org.br", "fgv.br", "concursosfcc.com.br", "fundatec.org.br", "objetivas.com.br",
+          "legalleconcursos.com.br", "institutolegalle.org.br", "fepese.org.br", "institutoaocp.org.br",
+          "ibfc.org.br", "vunesp.com.br", "ibade.org.br", "institutoconsulplan.org.br", "idecan.org.br",
+          "cesgranrio.org.br", "selecon.org.br", "portalfaurgs.com.br", "fundacaolasalle.org.br",
+          "ciee.org.br", "cieers.org.br", "cieepr.org.br", "ciee-sc.org.br", "nube.com.br",
+          "premierconcursos.com.br", "omniinstituto.org.br", "furb.br", "acafe.org.br", "nc.ufpr.br"]
 
 # As listas abaixo são procuradas no edital (minúsculo, sem acento) e aceitam
 # expressões regulares: [oa] = "o" ou "a", (de|em) = "de" ou "em", ? = opcional.
@@ -226,6 +301,328 @@ def chaves(c):
     return {n for n in nomes if len(n) >= 2}
 
 
+# ---------- edital (PDF) ----------
+
+BLOQUEIO = ("cf-mitigated", "x-amzn-waf-action")
+
+
+class Bloqueado(Exception):
+    """O site da banca tem proteção contra robôs (Cloudflare, AWS WAF, captcha)."""
+
+
+def links_da_pagina(html, base, contexto=True):
+    """[(url absoluta, texto do link + o texto logo antes dele)] de uma página."""
+    from urllib.parse import urljoin
+    saida = []
+    for m in re.finditer(r'<a\b[^>]*href=["\']([^"\'#]+)["\'][^>]*>(.*?)</a>', html, re.S | re.I):
+        href = htmllib.unescape(m.group(1).strip())
+        if href.startswith(("javascript:", "mailto:", "tel:")):
+            continue
+        antes = sem_tags(html[max(0, m.start() - 400):m.start()]).replace("\n", " ")[-120:] if contexto else ""
+        texto = sem_tags(m.group(2)).replace("\n", " ")[:150]
+        saida.append((urljoin(base, href), f"{antes} {texto}".strip()))
+    return saida
+
+
+def nota_pdf(url, texto):
+    """Quanto mais alto, mais cara de edital de abertura o link tem."""
+    t = norm(url + " " + texto)
+    nota = 0
+    if re.search(r"\.pdf\b|arquivo|download|anexo", t):
+        nota += 1
+    if "edital" in t:
+        nota += 3
+    if re.search(r"abertura|\b0*1/20\d\d\b|edital de concurso|edital de processo|edital completo", t):
+        nota += 3
+    if "consolidad" in t:
+        nota += 1
+    if re.search(r"concurso|processo seletivo|selecao publica", t):
+        nota += 2
+    if re.search(r"retific|resultado|homolog|gabarito|convoca|classifica|recurso|deferid|prova|errata|aviso|"
+                 r"termo|politica|privacidade|manual|cronograma|requerimento|formulario|ficha|lgpd|cookies", t):
+        nota -= 4
+    return nota
+
+
+def parece_arquivo(url):
+    return bool(re.search(r"\.pdf\b|arquivo|download|/files?/|anexo", url.lower()))
+
+
+def baixar(s, url, limite=25_000_000):
+    r = s.get(url, timeout=(8, 30), stream=True, headers={"Accept": "text/html,application/pdf,*/*"})
+    if any(h in r.headers for h in BLOQUEIO) or r.status_code in (202, 403, 429, 503):
+        r.close()
+        raise Bloqueado(f"HTTP {r.status_code}")
+    r.raise_for_status()
+    corpo = b""
+    for parte in r.iter_content(65536):
+        corpo += parte
+        if len(corpo) > limite:
+            break
+    r.close()
+    return corpo, r.headers.get("content-type", ""), r.url
+
+
+def parece_edital(texto):
+    t = norm(texto[:60000])
+    return (len(texto) > 4000 and "edital" in t and "cargo" in t
+            and bool(re.search(r"requisito|escolaridade|vencimento|remuneracao|salario", t)))
+
+
+def do_orgao(texto, alvo):
+    """O edital fala do órgão certo? (evita pegar o edital de outra cidade)"""
+    return not alvo or alvo in norm(texto[:15000]).replace("-", " ")
+
+
+def achar_edital(s, links, alvo, max_buscas=12, aceita=None):
+    """Segue os links (notícias, banca, prefeitura) até o edital.
+    -> (url, texto, situacao); situacao: lido, bloqueado, sem pdf, pdf escaneado."""
+    bloqueado = escaneado = False
+    vistos = set()
+    fila = [(u, 0) for u in links]
+    while fila and len(vistos) < max_buscas:
+        url, nivel = fila.pop(0)
+        if url in vistos:
+            continue
+        vistos.add(url)
+        try:
+            corpo, tipo, final = baixar(s, url)
+        except Bloqueado:
+            bloqueado = True
+            continue
+        except Exception:
+            continue
+        if corpo[:5] == b"%PDF-":
+            try:
+                texto = texto_do_pdf(corpo)
+            except Exception:
+                continue
+            if len(texto.strip()) < 800:
+                escaneado = True
+                continue
+            if do_orgao(texto, alvo):
+                return final, texto, "lido"
+            continue
+        if "html" not in tipo.lower():
+            continue
+        html = corpo.decode("utf-8", "replace")
+        texto = sem_tags(re.sub(r"<(nav|header|footer)\b.*?</\1>", " ", html, flags=re.S | re.I))
+        if parece_edital(texto) and do_orgao(texto, alvo):
+            return final, texto, "lido"  # edital publicado como página (Diário Oficial da União, por exemplo)
+        if nivel >= 2:
+            continue
+        candidatos = sorted(((nota_pdf(u, t), i, u) for i, (u, t) in enumerate(links_da_pagina(html, final))),
+                            key=lambda x: (-x[0], x[1]))
+        # primeiro os arquivos com cara de edital (até um link só com ícone serve), depois as páginas
+        if aceita:
+            candidatos = [x for x in candidatos if aceita(x[2])]
+        arquivos = [(u, nivel + 1) for n, _, u in candidatos if n >= 1 and parece_arquivo(u)][:3]
+        paginas = [(u, nivel + 1) for n, _, u in candidatos if n >= 2 and not parece_arquivo(u)][:3]
+        fila = arquivos + paginas + fila
+    if bloqueado:
+        return "", "", "bloqueado"
+    return "", "", "pdf escaneado" if escaneado else "sem pdf"
+
+
+def texto_do_pdf(corpo, paginas=45):
+    import io
+    import logging
+    from pypdf import PdfReader
+    logging.getLogger("pypdf").setLevel(logging.ERROR)  # avisos de fonte do PDF só poluem o log
+    leitor = PdfReader(io.BytesIO(corpo))
+    partes = []
+    for pagina in leitor.pages[:paginas]:
+        try:
+            partes.append(pagina.extract_text() or "")
+        except Exception:
+            partes.append("")
+    return "\n".join(partes)
+
+
+DINHEIRO = r"(?<![\d.,])\d{1,3}(?:\.\d{3})*,\d{2}(?![\d,])"
+
+
+def frouxo(padrao):
+    """Padrão que aceita palavras grudadas, como sai às vezes do PDF ("TécnicoemInformática")."""
+    return padrao.replace(" ", " ?")
+
+
+def linhas_de_cargo(texto):
+    """Lê a tabela de cargos do edital: [{cargo, req, salario}] dos cargos que interessam a algum perfil."""
+    original = re.sub(r"\s+", " ", texto)
+    t = norm_igual(original)
+    padroes = (CARGOS_TI + [p for p, _ in CARGOS_TI_TALVEZ] + CARGOS_DIREITO
+               + [p for p, _ in CARGOS_DIREITO_TALVEZ] + [p for p, _ in CARGOS_DIREITO_FORA])
+    achados = {}
+    for p in padroes:
+        for m in re.finditer(frouxo(p), t):
+            janela = original[m.end():m.end() + 700]
+            valores = [(v.start(), dinheiro("R$ " + v.group())) for v in re.finditer(DINHEIRO, janela)]
+            valores = [(i, v) for i, v in valores if v >= 600]
+            nome = re.sub(r"\s+", " ", original[m.start():m.end()]).strip()
+            chave = norm(nome).replace(" ", "")
+            if chave in achados and achados[chave]["salario"]:
+                continue
+            if valores:
+                i, v = valores[0]
+                req = janela[:i]
+            else:
+                v, req = 0.0, janela[:300]
+            req = re.sub(r"^[\s\-–:]*(\d{1,3}|cr|cadastro reserva)?\s*(\d{2} ?h(oras)?)?", "", req, flags=re.I)
+            if chave not in achados or v:
+                achados[chave] = {"cargo": nome, "req": req.strip()[:400], "salario": v}
+    return list(achados.values())[:15]
+
+
+def trechos_estagio(texto):
+    """Linhas do edital de estágio que falam de curso, semestre e formatura."""
+    linhas = [x.strip() for x in texto.split("\n") if x.strip()]
+    pega = [x for x in linhas if re.search(r"curso|semestre|formatura|conclus|matriculad|direito|informatica|"
+                                            r"computacao|sistemas|tecnologia", norm(x))]
+    return "\n".join(pega)[:3000]
+
+
+def trechos_lotacao(texto):
+    """Pedaços do edital que dizem onde é o trabalho."""
+    original = re.sub(r"\s+", " ", texto)
+    t = norm(original)
+    pedacos = [original[max(0, m.start() - 80):m.end() + 300]
+               for m in re.finditer(r"lotac|local de trabalho|locais de trabalho|cidade de|municipio de|campus|unidade de", t)]
+    return " | ".join(pedacos[:12])[:3000]
+
+
+def ler_edital_pdf(s, links, alvo):
+    """-> dict guardado em concursos.json com o que interessa do edital."""
+    info = {"versao": VERSAO_EDITAL, "url": "", "situacao": "sem link", "cargos": [], "estagio": "", "lotacao": ""}
+    if not links:
+        return info
+    url, texto, situacao = achar_edital(s, links, alvo)
+    info.update(url=url, situacao=situacao)
+    if texto:
+        info["cargos"] = linhas_de_cargo(texto)
+        info["estagio"] = trechos_estagio(texto)
+        info["lotacao"] = trechos_lotacao(texto)
+    return info
+
+
+def juntar(pci, cnb):
+    """O PCI vem primeiro. Do Concursos no Brasil entra o que o PCI não tem (sobretudo estágios);
+    quando os dois têm o mesmo concurso, a notícia do Concursos no Brasil fica guardada pra achar o edital."""
+    def perto_no_salario(a, b):
+        if not a["salario"] or not b["salario"]:
+            return 1.0
+        return abs(a["salario"] - b["salario"]) / max(a["salario"], b["salario"])
+
+    usados, links, saida = set(), set(), []
+    for c in pci:
+        if c["link"] in links:
+            continue
+        links.add(c["link"])
+        ks, est = chaves(c), e_estagio(c)
+        pares = [o for o in cnb if o["uf"] == c["uf"] and o["link"] not in usados
+                 and e_estagio(o) == est and chaves(o) & ks]
+        if pares:
+            o = min(pares, key=lambda o: perto_no_salario(c, o))
+            c["artigos"] = [o["link"]]
+            usados.add(o["link"])
+        saida.append(c)
+    for c in cnb:
+        if c["link"] in usados or c["link"] in links:
+            continue
+        if not e_estagio(c) and any(chaves(c) & chaves(p) for p in pci if p["uf"] == c["uf"]):
+            continue  # outro edital do mesmo órgão que o PCI já tem
+        c["artigos"] = [c["link"]]
+        links.add(c["link"])
+        saida.append(c)
+    return saida
+
+
+# ---------- notícia e outras fontes do mesmo concurso ----------
+
+FONTES_WP = [  # sites de notícias de concursos com busca aberta (WordPress)
+    "https://concursosnobrasil.com",
+    "https://blog.grancursosonline.com.br",
+    "https://concursos.estrategia.com/portal",
+]
+NAO_SAO_EDITAL = re.compile(
+    r"facebook|instagram|twitter|x\.com/|whatsapp|t\.me/|youtube|google|bit\.ly|linktr|spotify|tiktok|linkedin"
+    r"|concursosnobrasil|grancursos|estrategia|pciconcursos|qconcursos|apostila|cdn-cgi|wp-content/uploads/20\d\d/\d\d/.*\.(jpe?g|png|webp)")
+
+
+def ler_noticia(s, link):
+    r = s.get(link, headers={"Accept": "text/html"}, timeout=40)
+    r.raise_for_status()
+    h = r.text
+    i, j = h.find("<article"), h.find("</article>")
+    corpo = h[i:j] if 0 <= i < j else h
+    corpo = re.sub(r'<div class="related-post.*?(?=<p>|<h2|<h3|<ul|$)', " ", corpo, flags=re.S)
+    texto = sem_tags(corpo)
+    texto = re.sub(r"continua depois da publicidade|Quer se aprofundar\?.*$", " ", texto, flags=re.I | re.S)
+    return texto[:8000], links_externos(corpo)
+
+
+def links_externos(html):
+    vistos, saida = set(), []
+    for u in re.findall(r'href=["\'](https?://[^"\']+)["\']', html):
+        u = htmllib.unescape(u)
+        if NAO_SAO_EDITAL.search(u.lower()) or u in vistos:
+            continue
+        vistos.add(u)
+        saida.append(u)
+    return saida
+
+
+def nome_de_busca(c):
+    """O que procurar nos outros sites: a cidade (prefeituras e câmaras) ou a sigla/nome do órgão."""
+    cidade = cidade_do_orgao(c["orgao"])
+    if cidade:
+        return cidade
+    return re.split(r"\s+[-–]\s+|\(", c["orgao"])[0].strip()
+
+
+def outras_noticias(s, c, hoje):
+    """Links (banca, PDF, prefeitura, diário oficial) citados por outras notícias do mesmo concurso."""
+    nome = nome_de_busca(c)
+    alvo = norm(nome)
+    est = e_estagio(c)
+    links = []
+    for base in FONTES_WP:
+        try:
+            r = s.get(base + "/wp-json/wp/v2/posts", timeout=(8, 25),
+                      params={"search": nome, "per_page": 8, "_fields": "link,title,date,content"})
+            r.raise_for_status()
+            posts = r.json()
+        except Exception:
+            continue
+        bons = []
+        for p in posts if isinstance(posts, list) else []:
+            titulo = norm(sem_tags((p.get("title") or {}).get("rendered", "")))
+            data = (p.get("date") or "")[:10]
+            if alvo not in titulo or (data and data < (hoje - timedelta(days=150)).isoformat()):
+                continue
+            # o mesmo tipo de seleção primeiro (estágio com estágio) e o salário mais parecido
+            nota = (tem(["estagio", "estagiarios"], titulo) == est) * 2
+            if c["salario"] and abs(dinheiro(titulo) - c["salario"]) <= c["salario"] * 0.1:
+                nota += 1
+            bons.append((nota, data, p))
+        for _, _, p in sorted(bons, key=lambda x: (x[0], x[1]), reverse=True)[:3]:
+            links += links_externos((p.get("content") or {}).get("rendered", ""))
+        time.sleep(0.3)
+    return links
+
+
+def site_da_prefeitura(c):
+    """Prefeituras e câmaras do Sul quase sempre ficam em cidade.uf.gov.br."""
+    cidade = cidade_do_orgao(c["orgao"])
+    if not cidade or not c["uf"]:
+        return []
+    slug = re.sub(r"[^a-z0-9]+", "", norm(cidade))
+    uf = c["uf"].lower()
+    if re.match(r"c[aâ]mara", c["orgao"], re.I):
+        return [f"https://www.camara{slug}.{uf}.gov.br/", f"https://{slug}.{uf}.leg.br/"]
+    return [f"https://{slug}.{uf}.gov.br/", f"https://www.{slug}.{uf}.gov.br/"]
+
+
 # ---------- listas de concursos ----------
 
 def listar_pci(s, hoje):
@@ -290,128 +687,429 @@ def e_estagio(c):
                norm(c["titulo"] + " " + c["resumo"]))
 
 
-def juntar(pci, cnb):
-    """O PCI vem primeiro; do Concursos no Brasil entra o que o PCI não tem (sobretudo estágios)."""
-    vistos = {}
-    for c in pci:
-        vistos.setdefault(c["uf"], set()).update(chaves(c))
-    saida, links = [], set()
-    for c in pci + cnb:
-        if c["link"] in links:
+# ---------- sites oficiais dos órgãos ----------
+
+def dominio(url):
+    from urllib.parse import urlparse
+    return (urlparse(url).hostname or "").lower()
+
+
+def no_dominio(h, lista):
+    return any(h == d or h.endswith("." + d) for d in lista)
+
+
+def oficial(url):
+    """Site de governo (ou da lista DOMINIOS_OFICIAIS) e com HTTPS."""
+    h = dominio(url)
+    return url.lower().startswith("https://") and (h.endswith(SUFIXOS_OFICIAIS) or no_dominio(h, DOMINIOS_OFICIAIS))
+
+
+def confiavel(url):
+    """Site oficial ou de uma banca conhecida."""
+    return oficial(url) or (url.lower().startswith(("https://", "http://")) and no_dominio(dominio(url), BANCAS))
+
+
+PAGINA_DE_CONCURSOS = r"concurso|selec|seletivo|estagi|trabalhe (conosco|no|na)|oportunidades|carreira|servidor"
+# o que é emprego/estágio (e não vestibular, bolsa, pós-graduação, licitação...)
+EMPREGO = (r"concurso publico|concurso para|processo seletivo simplificado|selecao publica|estagi|residencia juridica"
+           r"|professor substituto|professor visitante|contratacao temporaria|tecnico.administrativo|servidor|cargos?\b"
+           r"|analista|tecnico judiciario")
+NAO_E_EMPREGO = (r"vestibular|ingresso discente|reingresso|transferencia|pos-graduacao|mestrado|doutorado|bolsista"
+                 r"|auxilio|eleitora|eleicao|subsequente|apoio financeiro|iniciacao|extensao|monitoria|intercambio"
+                 r"|premio|selo|credenciamento|licitac|pregao|chamamento|palestrante|voluntari|examinador|leilao|doacao")
+NAO_E_ABERTURA = r"resultado|homolog|gabarito|convoca|classifica|retifica|nomeac|recurso|cancelad|encerrad|suspens|decis"
+
+
+_NAVEGADOR = {}
+
+
+def renderizar(url):
+    """Abre a página num navegador de verdade (Playwright), pros sites oficiais que só montam o
+    conteúdo com JavaScript, como o portal do STJ. Não serve pra passar por bloqueio anti-robô:
+    página de verificação continua sendo tratada como bloqueio. -> (html, url final) ou None."""
+    try:
+        if "pagina" not in _NAVEGADOR:
+            import atexit
+            import os
+            from playwright.sync_api import sync_playwright
+            pw = sync_playwright().start()
+            try:
+                navegador = pw.chromium.launch()
+            except Exception:  # navegador já instalado na máquina (ex.: /opt/pw-browsers/chromium)
+                navegador = pw.chromium.launch(executable_path=os.environ.get("CHROMIUM", "/opt/pw-browsers/chromium"))
+            _NAVEGADOR["pagina"] = navegador.new_page(user_agent="Mozilla/5.0 (compatible; radar-vagas/1.0)")
+            atexit.register(lambda: (navegador.close(), pw.stop()))
+        pagina = _NAVEGADOR["pagina"]
+        pagina.goto(url, wait_until="networkidle", timeout=45000)
+        html = pagina.content()
+        if re.search(r"just a moment|challenges\.cloudflare|captcha", html[:5000], re.I):
+            return None
+        return html, pagina.url
+    except Exception as e:
+        print(f"  [navegador] {url}: {type(e).__name__}: {str(e)[:100]}")
+        return None
+
+
+def pagina_oficial(s, url):
+    """HTML da página; se vier quase sem links (montada por JavaScript), abre no navegador."""
+    corpo, _, final = baixar(s, url)
+    html = corpo.decode("utf-8", "replace")
+    html, final = seguir_refresh(s, html, final)
+    if len(re.findall(r"<a\b", html, re.I)) < 10:
+        renderizada = renderizar(final)
+        if renderizada:
+            html, final = renderizada
+    return html, final
+
+
+def seguir_refresh(s, html, base):
+    """Páginas que só redirecionam (<meta http-equiv="refresh">)."""
+    from urllib.parse import urljoin
+    m = re.search(r'http-equiv=["\']?refresh["\']?[^>]*url=([^"\'>\s]+)', html, re.I)
+    if m and len(html) < 3000:
+        corpo, _, final = baixar(s, urljoin(base, m.group(1)))
+        return corpo.decode("utf-8", "replace"), final
+    return html, base
+
+
+def links_de_concursos(s, site, ano):
+    """[(url, título)] de concursos/estágios no site oficial: entra nas páginas de concursos e estágios
+    (até 2 níveis) e fica com os links de edital/seleção de emprego, os do ano primeiro."""
+    html, final = pagina_oficial(s, site)
+    if not oficial(final):
+        raise ValueError(f"o site mandou pra fora do governo: {dominio(final)}")
+    fila, paginas, achados, vistos = [(final, html, 0)], {final}, [], set()
+    while fila and len(paginas) <= 8:
+        pagina, html, nivel = fila.pop(0)
+        if html is None:
+            try:
+                html, pagina = pagina_oficial(s, pagina)
+            except Exception:
+                continue
+            if not oficial(pagina):
+                continue
+            time.sleep(0.3)
+        for u, t in links_da_pagina(html, pagina, contexto=False):
+            n = norm(t + " " + u)
+            if (nivel < 2 and oficial(u) and u not in paginas and len(t) < 70
+                    and re.search(PAGINA_DE_CONCURSOS, norm(t)) and not re.search(NAO_E_EMPREGO, n)
+                    and not parece_arquivo(u)):
+                paginas.add(u)
+                fila.append((u, None, nivel + 1))
+            if (u not in vistos and confiavel(u) and re.search(EMPREGO, n) and re.search(r"edital|concurso|seletiv|selecao|estagi", n)
+                    and not re.search(NAO_E_EMPREGO, n) and not re.search(NAO_E_ABERTURA, n) and len(t) > 12):
+                vistos.add(u)
+                achados.append((u, re.sub(r"\s+", " ", t).strip()[:140]))
+    def antigo(u, t):  # cita só anos que já passaram: concurso velho que segue publicado
+        anos = [int(a) for a in re.findall(r"(?<!\d)(20[0-4]\d)(?!\d)", t + " " + u)]
+        return bool(anos) and max(anos) < ano
+    achados = [x for x in achados if not antigo(*x)]
+    achados.sort(key=lambda x: str(ano) not in norm(x[1] + x[0]))  # os do ano primeiro
+    return achados[:8]
+
+
+def coletar_oficiais(s, guardados, novos, agora):
+    """Concursos com inscrição aberta nos sites oficiais. -> (itens prontos pra juntar, texto pro status)"""
+    hoje, ano = agora.date(), agora.year
+    limite = time.monotonic() + MINUTOS_NOS_SITES_OFICIAIS * 60
+    itens, ok, problemas = [], 0, []
+    for nome, site, uf, cidade in ORGAOS_OFICIAIS:
+        if uf and uf not in UFS or (not uf and not INCLUIR_NACIONAIS):
             continue
-        if c["fonte"] != "PCI Concursos" and not e_estagio(c) and chaves(c) & vistos.get(c["uf"], set()):
+        if time.monotonic() > limite:
+            problemas.append(f"{nome} (sem tempo nesta rodada)")
             continue
-        links.add(c["link"])
-        saida.append(c)
+        if not oficial(site):
+            problemas.append(f"{nome} (não é site oficial)")
+            continue
+        try:
+            links = links_de_concursos(s, site, ano)
+            ok += 1
+        except Exception as e:
+            problemas.append(f"{nome} (sem resposta)")
+            print(f"  [oficial] {nome}: {type(e).__name__}: {str(e)[:120]}")
+            continue
+        for url, titulo in links:
+            chave = "oficial:" + url
+            g = guardados.get(chave) or {"visto": agora.isoformat()}
+            tentar = g.get("versao") != VERSAO_EDITAL or (
+                not g.get("edital") and g.get("tentado", "") < (hoje - timedelta(days=7)).isoformat())
+            if tentar and time.monotonic() < limite:
+                edital_url, texto, situacao = achar_edital(s, [url], "", max_buscas=5, aceita=confiavel)
+                g.update(versao=VERSAO_EDITAL, tentado=hoje.isoformat(), titulo=titulo)
+                if texto:
+                    g["texto"] = texto[:6000]
+                    g["ate"] = data_inscricao(texto, hoje)
+                    g["edital"] = {"versao": VERSAO_EDITAL, "url": edital_url, "situacao": "lido",
+                                   "cargos": linhas_de_cargo(texto), "estagio": trechos_estagio(texto),
+                                   "lotacao": trechos_lotacao(texto)}
+                else:
+                    g.pop("edital", None)
+            novos[chave] = g
+            if not g.get("edital") or not g.get("ate") or g["ate"] < hoje.isoformat():
+                continue  # sem edital ou sem prazo aberto: não dá pra confiar que está aberto
+            valores = [x["salario"] for x in g["edital"]["cargos"] if x["salario"]]
+            c = {"orgao": nome, "titulo": g.get("titulo") or titulo or nome, "link": url,
+                 "fonte": f"Site oficial ({dominio(site)})", "uf": uf, "ate": g["ate"], "vagas": "",
+                 "salario": max(valores) if valores else 0.0, "por_hora": False, "resumo": "",
+                 "escolaridade": "", "cidade_fixa": cidade, "oficial": True}
+            itens.append((c, chave))
+    texto = f"{len(itens)} encontrados (em {ok} de {len(ORGAOS_OFICIAIS)} órgãos)"
+    if problemas:
+        texto += " · problema: " + ", ".join(problemas[:8]) + (" e outros" if len(problemas) > 8 else "")
+    print(f"Sites oficiais: {texto}")
+    return itens, texto
+
+
+# ---------- quais cargos servem pra você ----------
+
+FORMATURA_DIREITO = "jan/2027"
+
+NIVEIS = [("superior", r"superior|graduac|bachar|licenciat|tecnolog"), ("tecnico", r"tecnic"),
+          ("medio", r"medio|2o grau|segundo grau"), ("fundamental", r"fundamental|alfabetiz")]
+
+
+def niveis_da_noticia(texto):
+    """A notícia costuma agrupar os cargos por escolaridade ("Nível técnico: Técnico de Informática")."""
+    nivel, saida = "", {}
+    for linha in texto.split("\n"):
+        l = norm(linha).strip(" :-–")
+        # só a linha que é o título do grupo ("Nível técnico", "Ensino Superior completo:"),
+        # não um cargo que começa com a mesma palavra ("Técnico Judiciário")
+        if re.fullmatch(r"(cargos? (de|para) )?(nivel|ensino|escolaridade|formacao)?\s*(fundamental|medio|tecnico|superior)"
+                        r"(\s*(/|e|ou)\s*(medio|tecnico|superior))?( completo| incompleto)?( \(.*\))?", l):
+            nivel = next(n for n, p in NIVEIS if re.search(p, l))
+            continue
+        if len(l) > 120:
+            nivel = ""
+        elif nivel:
+            saida[l] = nivel
     return saida
 
 
-# ---------- texto dos editais ----------
-
-def ler_edital(s, link):
-    r = s.get(link, headers={"Accept": "text/html"}, timeout=40)
-    r.raise_for_status()
-    h = r.text
-    i, j = h.find("<article"), h.find("</article>")
-    corpo = h[i:j] if 0 <= i < j else h
-    corpo = re.sub(r'<div class="related-post.*?(?=<p>|<h2|<h3|<ul|$)', " ", corpo, flags=re.S)
-    texto = sem_tags(corpo)
-    texto = re.sub(r"continua depois da publicidade|Quer se aprofundar\?.*$", " ", texto, flags=re.I | re.S)
-    return texto[:8000]
+def nivel_do_texto(req):
+    r = norm(req)
+    for nivel, padrao in NIVEIS:
+        if re.search(padrao, r):
+            return nivel
+    return ""
 
 
-def precisa_ler(c):
-    """Concursos que já dá pra decidir pela lista não precisam do edital (só pede fundamental/médio)."""
-    if c["fonte"] != "PCI Concursos" or e_estagio(c):
-        return True
-    esc = norm(c["escolaridade"])
-    return "tecnico" in esc or "superior" in esc or "varios cargos" in norm(c["resumo"]) or not esc
+def avaliar_ti(nome, req, nivel):
+    """Você: técnico em informática, cursando Sistemas de Informação."""
+    n, r = norm(nome), norm(req)
+    if re.search(r"licenciatura", r) and not re.search(r"bacharel|tecnolog|tecnico em", r):
+        return "descartada", "Pede licenciatura"
+    if re.search(r"tecnic[oa] (em|de) (informatica|ti|tecnologia da informacao|redes|manutencao|processamento)"
+                 r"|curso tecnico", r):
+        return "encaixa", "Pede curso técnico: você é técnico em informática"
+    if re.search(r"cursando|em andamento|matriculad|estudante", r):
+        return "encaixa", "Aceita quem está cursando"
+    if re.search(r"superior|graduac|bachar|tecnolog|diploma", r):
+        return "talvez", "Pede faculdade concluída: você ainda está cursando SI"
+    if re.search(r"ensino medio|nivel medio|medio completo|2o grau|fundamental", r):
+        return "encaixa", "Pede ensino médio"
+    nivel = nivel or ("tecnico" if re.search(r"tecnic[oa] (em|de)", n) else
+                      "medio" if re.search(r"(auxiliar|assistente|agente|monitor|operador)", n) else
+                      "superior" if re.search(r"analista|engenheir|cientista|administrador|especialista", n) else "")
+    if re.search(r"professor|instrutor", n):
+        return "talvez", "Professor/instrutor: costuma pedir licenciatura"
+    if nivel in ("tecnico", "medio", "fundamental"):
+        return "encaixa", {"tecnico": "Cargo de nível técnico", "medio": "Cargo de nível médio",
+                           "fundamental": "Cargo de nível fundamental"}[nivel]
+    if nivel == "superior":
+        return "talvez", "Costuma pedir faculdade concluída: você ainda está cursando SI"
+    return "talvez", "Confira a escolaridade no edital"
 
 
-# ---------- classificação ----------
+def avaliar_direito(nome, req, nivel):
+    """Você: cursando Direito, formatura em FORMATURA_DIREITO, sem OAB."""
+    classe, motivo = avaliar_direito_requisito(nome, req, nivel)
+    generico = next((m for p, m in CARGOS_DIREITO_TALVEZ if re.search(p, norm(nome))), None)
+    if generico and classe == "encaixa":  # controlador, fiscal, polícia...: não é cargo jurídico
+        return "talvez", generico
+    if generico and classe == "talvez":
+        return "talvez", f"{generico}. {motivo}"
+    return classe, motivo
 
-def so_basico(c):
-    esc = norm(c["escolaridade"])
-    return bool(esc) and "tecnico" not in esc and "superior" not in esc and "nao informada" not in esc
+
+def avaliar_direito_requisito(nome, req, nivel):
+    n, r = norm(nome), norm(req)
+    for padrao, motivo in CARGOS_DIREITO_FORA:
+        if re.search(padrao, n):
+            return "descartada", motivo
+    if re.search(r"\boab\b", r):
+        return "descartada", "Pede OAB"
+    if re.search(r"cursando|em andamento|matriculad|estudante|academico", r):
+        return "encaixa", "Aceita quem está cursando Direito"
+    if re.search(r"superior|graduac|bachar|diploma", r):
+        return "talvez", f"Pede faculdade concluída: você se forma em {FORMATURA_DIREITO} e o diploma é cobrado na posse"
+    if re.search(r"ensino medio|nivel medio|medio completo|2o grau|fundamental|tecnico", r):
+        return "encaixa", "Pede ensino médio"
+    if nivel in ("medio", "tecnico", "fundamental"):
+        return "encaixa", "Cargo de nível médio"
+    if nivel == "superior" or re.search(r"analista|oficial de justica|assessor|delegad|escrivao|inspetor|"
+                                        r"controlador|auditor|fiscal|consultor", n):
+        return "talvez", f"Costuma pedir faculdade concluída: você se forma em {FORMATURA_DIREITO}"
+    return "talvez", "Confira a escolaridade: alguns pedem só ensino médio"
 
 
-def classificar(c, texto, perfil):
-    """-> [classe, motivo, cargos que servem]"""
-    original = "\n".join([c["titulo"]] + [x.strip() for x in c["resumo"].split(",")] + [texto])
-    t = norm_igual(original)
+def candidatos(perfil, original, t):
+    """Cargos do perfil citados num texto: [(nome, padrão)]."""
+    if perfil == "ti":
+        padroes = CARGOS_TI + [p for p, _ in CARGOS_TI_TALVEZ]
+    else:
+        padroes = CARGOS_DIREITO + [p for p, _ in CARGOS_DIREITO_TALVEZ] + [p for p, _ in CARGOS_DIREITO_FORA]
+    return achar(padroes, t, original)
+
+
+def nivel_da_lista(c):
+    esc = [n for n, p in NIVEIS if re.search(p, norm(c["escolaridade"]))]
+    return esc[0] if len(esc) == 1 else ""
+
+
+def classificar(c, noticia, edital, perfil):
+    """-> [classe, motivo, cargos ("Nome · R$ x"), salário do cargo, de onde veio o salário]"""
+    avaliar = avaliar_ti if perfil == "ti" else avaliar_direito
+    texto_est = (edital.get("estagio") or "") + "\n" + noticia + "\n" + c["titulo"]
+    t_est = norm(texto_est)
 
     if e_estagio(c):
         if perfil == "ti":
-            cursos = achar(CURSOS_TI, t, original)
-            if cursos:
-                return ["encaixa", "Estágio pra estudante de TI", cursos]
-            if any(re.search(p, t) for p in QUALQUER_CURSO):
-                return ["talvez", "Estágio pra vários cursos: confira se TI está incluído", []]
-            return ["descartada", "Estágio sem curso de TI", []]
-        tem_direito = re.search(r"\bdireito\b|juridic", t)
-        if tem_direito and any(re.search(p, t) for p in POS_GRADUACAO):
-            return ["talvez", "Estágio de pós em Direito: pede matrícula numa pós-graduação", []]
-        if tem_direito:
-            return ["descartada", "Estágio de graduação: é pra quem ainda está na faculdade", []]
-        return ["descartada", "Estágio sem vaga pra Direito", []]
+            if any(re.search(p, t_est) for p in CURSOS_TI):
+                return ["encaixa", "Estágio pra estudante de TI (você cursa SI)", [], None, None]
+            if any(re.search(p, t_est) for p in QUALQUER_CURSO):
+                return ["talvez", "Estágio pra vários cursos: confira se SI está incluído", [], None, None]
+            return ["descartada", "Estágio sem curso de TI", [], None, None]
+        if not re.search(r"\bdireito\b|juridic", t_est):
+            return ["descartada", "Estágio sem vaga pra Direito", [], None, None]
+        if any(re.search(p, t_est) for p in POS_GRADUACAO) and not re.search(r"graduacao em direito|cursando direito", t_est):
+            return ["descartada", "Estágio de pós: é pra quem já se formou", [], None, None]
+        if re.search(r"ultimo semestre|ultimos semestres|semestres? restantes|minimo de \d+ semestres? (a|para) cursar"
+                     r"|50% da carga|formatura[^.]{0,40}20(2[89]|3\d)", t_est):
+            return ["talvez", f"Confira o tempo que falta pra formatura: você se forma em {FORMATURA_DIREITO}", [], None, None]
+        return ["encaixa", "Estágio pra estudante de Direito", [], None, None]
 
-    if perfil == "ti":
-        cargos = achar(CARGOS_TI, t, original)
-        if cargos:
-            return ["encaixa", "Cargo de TI", cargos]
-        for padrao, motivo in CARGOS_TI_TALVEZ:
-            cargos = achar([padrao], t, original)
-            if cargos:
-                return ["talvez", motivo, cargos]
-        nome_area = "de TI"
-    else:
-        # "Analista Judiciário - Especialidade Arquitetura" não serve: só as especialidades jurídicas
-        cargos = [x for x in achar(CARGOS_DIREITO, t, original)
-                  if not re.search(r"especialidade|apoio especializado", norm(x))
-                  or re.search(r"direito|juridic|oficial de justica|area judiciaria", norm(x))]
-        if cargos:
-            return ["encaixa", "Cargo da área jurídica, sem exigir OAB", cargos]
-        for padrao, motivo in CARGOS_DIREITO_TALVEZ:
-            cargos = achar([padrao], t, original)
-            if cargos:
-                return ["talvez", motivo, cargos]
-        if not so_basico(c) and any(re.search(p, t) for p in QUALQUER_SUPERIOR):
-            return ["talvez", "Tem cargo de nível superior em qualquer área", []]
-        for padrao, motivo in CARGOS_DIREITO_FORA:
-            cargos = achar([padrao], t, original)
-            if cargos:
-                return ["descartada", motivo, cargos]
-        nome_area = "da área jurídica"
+    resultados = []  # (classe, motivo, nome, salário, origem)
+    linhas = edital.get("cargos") or []
+    padroes_perfil = (CARGOS_TI + [p for p, _ in CARGOS_TI_TALVEZ] if perfil == "ti" else
+                      CARGOS_DIREITO + [p for p, _ in CARGOS_DIREITO_TALVEZ] + [p for p, _ in CARGOS_DIREITO_FORA])
+    for l in linhas:  # o edital manda: escolaridade e salário de cada cargo
+        if any(re.search(p, norm(l["cargo"])) for p in padroes_perfil):
+            classe, motivo = avaliar(l["cargo"], l["req"], nivel_do_texto(l["req"]))
+            resultados.append((classe, motivo, l["cargo"], l["salario"] or None, "edital" if l["salario"] else None))
+    if not resultados:  # sem edital: o que a notícia diz
+        original = "\n".join([c["titulo"]] + [x.strip() for x in c["resumo"].split(",")] + [noticia])
+        niveis = niveis_da_noticia(noticia)
+        for nome in candidatos(perfil, original, norm_igual(original)):
+            nivel = niveis.get(norm(nome).strip(" :-–")) or next(
+                (v for k, v in niveis.items() if norm(nome) in k), "") or nivel_da_lista(c)
+            classe, motivo = avaliar(nome, "", nivel)
+            valor = dinheiro(nome)
+            resultados.append((classe, motivo, nome, valor or None, "noticia" if valor else None))
+    if resultados:
+        peso = {"encaixa": 2, "talvez": 1, "descartada": 0}
+        melhor = max(peso[r[0]] for r in resultados)
+        escolhidos = [r for r in resultados if peso[r[0]] == melhor]
+        valores = [r[3] for r in escolhidos if r[3]]
+        cargos = [r[2] + (f" · {reais(r[3])}" if r[3] else "") for r in escolhidos][:6]
+        origem = next((r[4] for r in escolhidos if r[3] == max(valores)), None) if valores else None
+        return [escolhidos[0][0], escolhidos[0][1], cargos, max(valores) if valores else None, origem]
 
-    if so_basico(c):
-        return ["descartada", "Só pede ensino fundamental ou médio", []]
-    if not texto and "varios cargos" in norm(c["resumo"]):
-        return ["talvez", "Não deu pra ler os cargos: confira o edital", []]
-    return ["descartada", f"Nenhum cargo {nome_area}", []]
+    if perfil == "direito" and nivel_da_lista(c) != "fundamental" and any(
+            re.search(p, norm(noticia)) for p in QUALQUER_SUPERIOR):
+        return ["talvez", f"Tem cargo de nível superior em qualquer área (você se forma em {FORMATURA_DIREITO})", [], None, None]
+    esc = norm(c["escolaridade"])
+    if esc and "tecnico" not in esc and "superior" not in esc and "nao informada" not in esc and perfil == "ti":
+        return ["descartada", "Só pede ensino fundamental ou médio, sem cargo de TI", [], None, None]
+    if not noticia and not linhas and "varios cargos" in norm(c["resumo"]):
+        return ["talvez", "Não deu pra ler os cargos: confira o edital", [], None, None]
+    return ["descartada", "Nenhum cargo " + ("de TI" if perfil == "ti" else "da área jurídica"), [], None, None]
+
+
+# ---------- cidade ----------
+
+COMUNS = {"Vitória", "Esperança", "Progresso", "Liberdade", "Paraíso", "Independência", "Harmonia", "União",
+          "Salvador", "Planalto", "Cristal", "Formosa", "Palmeira", "Sertão", "Cruzeiro", "Bandeirantes", "Pinhal",
+          "Machado", "Saudade", "Campina", "Colorado", "Nova", "Jardim", "Tupã", "Itapuã", "Barracão", "Alvorada",
+          "Mariana", "Bom Jesus", "Esteio", "Feliz", "Imbé", "Ivoti", "Riozinho", "Serafina Corrêa", "Paraná",
+          "Cerro Azul", "Rio Negro", "Prudentópolis"}
+PREFERIDAS = ["Santa Maria", "Porto Alegre"]  # aparecem primeiro quando o concurso tem vaga nelas
+
+
+def carregar_municipios():
+    from pathlib import Path
+    try:
+        return json.loads((Path(__file__).resolve().parent / "municipios.json").read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+MUNICIPIOS = carregar_municipios()
+
+
+def cidades_no_texto(texto, uf):
+    # "Rio Grande do Sul" não é a cidade de Rio Grande, nem "Estado de São Paulo" a capital
+    texto = re.sub(r"Rio Grande do (Sul|Norte)|Estado d[eo] (São Paulo|Paraná|Santa Catarina)", " ", texto)
+    contagem = {}
+    for nome in MUNICIPIOS.get(uf, []):
+        if nome in COMUNS or len(nome) < 4:
+            continue
+        n = len(re.findall(r"(?<![\wÀ-ú])" + re.escape(nome) + r"(?![\wÀ-ú])", texto))
+        if n:
+            contagem[nome] = n
+    # "Santa Maria do Herval" não conta como "Santa Maria"
+    for a in list(contagem):
+        for b in contagem:
+            if a != b and a in b:
+                contagem[a] -= contagem[b]
+    nomes = [n for n, q in sorted(contagem.items(), key=lambda x: -x[1]) if q > 0]
+    return sorted(nomes, key=lambda n: PREFERIDAS.index(n) if n in PREFERIDAS else len(PREFERIDAS))
+
+
+def cidades(c, noticia, edital):
+    """Onde é o trabalho: a cidade da prefeitura/câmara, ou as cidades de lotação do edital/notícia."""
+    if not c["uf"]:
+        return [c["cidade_fixa"]] if c.get("cidade_fixa") else []
+    propria = cidade_do_orgao(c["orgao"])
+    if propria:
+        return [propria]
+    achadas = cidades_no_texto(edital.get("lotacao") or "", c["uf"])
+    if not achadas:
+        achadas = cidades_no_texto(c["titulo"] + "\n" + noticia, c["uf"])
+    if not achadas and c.get("cidade_fixa"):
+        achadas = [c["cidade_fixa"]]
+    return achadas[:12]
+
+
+def texto_cidades(lista):
+    if not lista:
+        return ""
+    if len(lista) <= 3:
+        return ", ".join(lista[:-1]) + (" e " if len(lista) > 1 else "") + lista[-1]
+    return f"{', '.join(lista[:3])} e mais {len(lista) - 3}"
 
 
 # ---------- juntando tudo ----------
 
-def montar(c, texto, visto, agora):
-    """Concurso no formato da página."""
-    cidade = (cidade_do_orgao(c["orgao"]) or cidade_do_titulo(c["titulo"])) if c["uf"] else ""
+def montar(c, g, agora):
+    """Concurso no formato da página. g: o que está guardado em concursos.json pra ele."""
+    noticia, edital = g.get("texto", ""), g.get("edital") or {}
     estagio = e_estagio(c)
-    ate = c["ate"] or data_inscricao(texto, agora.date())
-    perfis = {}
-    for perfil in ("ti", "direito"):
-        classe, motivo, cargos = classificar(c, texto, perfil)
-        do_cargo = salario_da_linha(cargos)
-        perfis[perfil] = [classe, motivo, cargos, do_cargo or None]
-    minimo, maximo = faixa_salarial(texto)
+    ate = c["ate"] or data_inscricao(noticia, agora.date())
+    minimo, maximo = faixa_salarial(noticia)
     valor = c["salario"] or maximo
+    lugar = cidades(c, noticia, edital)
     return {
         "orgao": c["orgao"], "titulo": c["titulo"], "link": c["link"], "fonte": c["fonte"],
-        "uf": c["uf"], "cidade": cidade, "vagas": c["vagas"], "escolaridade": c["escolaridade"],
-        "ate": ate, "estagio": estagio,
+        "uf": c["uf"], "cidade": texto_cidades(lugar), "cidades": lugar, "vagas": c["vagas"],
+        "escolaridade": c["escolaridade"], "ate": ate, "estagio": estagio,
         "salario": valor or None, "salarioMin": minimo if minimo and minimo < valor else None,
         "salarioTexto": (reais(valor) + (" por hora" if c["por_hora"] else "")) if valor else "",
-        "nova": datetime.fromisoformat(visto) >= agora - timedelta(hours=24),
-        "perfis": perfis,
+        "edital": edital.get("situacao", "sem link"), "editalUrl": edital.get("url", ""),
+        "editalOficial": bool(edital.get("url")) and oficial(edital.get("url", "")),
+        "nova": datetime.fromisoformat(g["visto"]) >= agora - timedelta(hours=24),
+        "perfis": {p: classificar(c, noticia, edital, p) for p in ("ti", "direito")},
     }
 
 
@@ -441,30 +1139,66 @@ def coletar(status, agora, pasta):
     print(f"Concursos: PCI {len(pci)}, Concursos no Brasil {len(cnb)}")
 
     itens = juntar(pci, cnb)
-    lidos, falhas = 0, 0
-    saida, novos_guardados = [], {}
-    for c in itens:
+    abertos = [c for c in itens if not (c["ate"] and c["ate"] < hoje.isoformat())]
+    lidos, novos = 0, {}
+    situacoes = {}
+    limite = time.monotonic() + MINUTOS_PROCURANDO_EDITAIS * 60
+    for c in abertos:
         g = guardados.get(c["link"]) or {"visto": agora.isoformat()}
-        if "texto" not in g and precisa_ler(c) and lidos < EDITAIS_POR_RODADA and falhas < 5:
+        if "texto" not in g:
             try:
-                g["texto"] = ler_edital(s, c["link"])
-                lidos += 1
+                g["texto"], links = ler_noticia(s, c["link"])
+                g["links"] = links if c["fonte"] != "PCI Concursos" else []
             except Exception as e:
-                falhas += 1
-                print(f"  [edital] {c['link']}: {type(e).__name__}: {str(e)[:120]}")
-            time.sleep(0.7)
-        novos_guardados[c["link"]] = g
-        item = montar(c, g.get("texto", ""), g["visto"], agora)
+                print(f"  [notícia] {c['link']}: {type(e).__name__}")
+            time.sleep(0.5)
+        edital = g.get("edital") or {}
+        if edital.get("versao") != VERSAO_EDITAL and lidos < EDITAIS_POR_RODADA and time.monotonic() < limite:
+            links = list(g.get("links") or [])
+            for artigo in c.get("artigos", []):
+                if artigo != c["link"]:
+                    try:
+                        links += ler_noticia(s, artigo)[1]
+                    except Exception:
+                        pass
+            links += [u for u in outras_noticias(s, c, hoje) if u not in links]
+            links += site_da_prefeitura(c)
+            alvo = norm(nome_de_busca(c)) if c["uf"] else ""
+            g["edital"] = ler_edital_pdf(s, links, alvo)
+            lidos += 1
+        situacao = (g.get("edital") or {}).get("situacao", "sem link")
+        situacoes[situacao] = situacoes.get(situacao, 0) + 1
+        novos[c["link"]] = g
+    # sites oficiais: o edital deles vale mais que o achado pelas notícias
+    try:
+        oficiais, status["Sites oficiais"] = coletar_oficiais(s, guardados, novos, agora)
+    except Exception as e:
+        oficiais = []
+        status["Sites oficiais"] = f"erro: {type(e).__name__}"
+    for c, chave in oficiais:
+        g = novos[chave]
+        par = next((a for a in abertos if a["uf"] == c["uf"] and e_estagio(a) == e_estagio(c)
+                    and chaves(a) & chaves(c)), None)
+        if par and (novos[par["link"]].get("edital") or {}).get("situacao") != "lido":
+            novos[par["link"]]["edital"] = g["edital"]  # o mesmo concurso: usa o edital do site oficial
+            par["fonte"] += " + site oficial"
+            par["ate"] = par["ate"] or g["ate"]
+        elif not par:
+            abertos.append(c)
+            situacoes["lido"] = situacoes.get("lido", 0) + 1
+
+    saida = []
+    for c in abertos:
+        item = montar(c, novos.get(c["link"]) or novos["oficial:" + c["link"]], agora)
         if item["ate"] and item["ate"] < hoje.isoformat():
             continue  # inscrições já fecharam
         saida.append(item)
-    if falhas:
-        status["Editais"] = f"problema: {falhas} editais não abriram"
-    print(f"Concursos: {len(saida)} abertos, {lidos} editais lidos agora, {falhas} falhas")
+    resumo = ", ".join(f"{q} {n}" for n, q in sorted(situacoes.items(), key=lambda x: -x[1]))
+    status["Editais"] = f"{situacoes.get('lido', 0)} encontrados de {len(abertos)} ({resumo})"
+    print(f"Concursos: {len(saida)} abertos, {lidos} editais procurados agora. Editais: {resumo}")
 
-    # guarda só o que ainda está nas listas
     arquivo.parent.mkdir(parents=True, exist_ok=True)
-    arquivo.write_text(json.dumps(novos_guardados, ensure_ascii=False, indent=0), encoding="utf-8")
+    arquivo.write_text(json.dumps(novos, ensure_ascii=False, indent=0), encoding="utf-8")
     saida.sort(key=lambda x: (x["salario"] or 0), reverse=True)
     return saida
 
@@ -473,32 +1207,44 @@ def exemplo(agora):
     """Concursos inventados pra testar a página sem internet."""
     hoje = agora.date()
     d = lambda n: (hoje + timedelta(days=n)).isoformat()
-    base = {"fonte": "PCI Concursos", "por_hora": False}
+    base = {"fonte": "PCI Concursos", "por_hora": False, "resumo": "", "escolaridade": ""}
+    lido = lambda cargos, estagio="", lotacao="": {"versao": VERSAO_EDITAL, "url": "https://example.com/edital.pdf",
+                                                   "situacao": "lido", "cargos": cargos, "estagio": estagio,
+                                                   "lotacao": lotacao}
     lista = [
         ({**base, "orgao": "Prefeitura de Santa Maria", "titulo": "Prefeitura de Santa Maria - RS abre concurso",
           "link": "https://example.com/c1", "uf": "RS", "ate": d(12), "vagas": "12 vagas", "salario": 7850.40,
           "resumo": "Vários Cargos", "escolaridade": "Médio / Técnico / Superior"},
-         "Cargos:\nAnalista de Sistemas (2 vagas) - R$ 7.850,40\nTécnico em Informática (1 vaga) - R$ 4.120,00\nContador\nProcurador Municipal"),
+         {"texto": "", "edital": lido([
+             {"cargo": "Analista de Sistemas", "req": "Curso superior completo em Sistemas de Informação", "salario": 7850.40},
+             {"cargo": "Técnico em Informática", "req": "Ensino médio completo e curso técnico em informática", "salario": 4120.00},
+             {"cargo": "Procurador Municipal", "req": "Bacharel em Direito e inscrição na OAB", "salario": 12000.00}])}),
         ({**base, "orgao": "TRT 4 - Tribunal Regional do Trabalho da 4ª Região", "titulo": "TRT4 - RS abre concurso",
           "link": "https://example.com/c2", "uf": "RS", "ate": d(18), "vagas": "Cadastro de reserva", "salario": 16040.88,
           "resumo": "Analista Judiciário, Técnico Judiciário", "escolaridade": "Superior"},
-         "Analista Judiciário - Área Judiciária\nAnalista Judiciário - Apoio Especializado - Tecnologia da Informação\nTécnico Judiciário - Área Administrativa"),
+         {"texto": "", "edital": lido([
+             {"cargo": "Analista Judiciário - Área Judiciária", "req": "Curso superior em Direito", "salario": 16040.88},
+             {"cargo": "Técnico Judiciário - Área Administrativa", "req": "Curso superior completo", "salario": 9780.00}],
+             lotacao="Lotação: Porto Alegre, Santa Maria, Caxias do Sul, Pelotas e Passo Fundo")}),
         ({**base, "orgao": "BANRISUL", "titulo": "Estágio Banrisul abre 378 vagas em diversas cidades do RS com bolsas de até R$ 2,7 mil",
           "link": "https://example.com/c3", "uf": "RS", "ate": d(5), "vagas": "378 vagas", "salario": 2707.80,
-          "resumo": "", "escolaridade": "", "fonte": "Concursos no Brasil"},
-         "Grupo I: Administração\nGrupo III: Tecnologia da Informação\nGrupo IX: Estatística"),
-        ({**base, "orgao": "PGE", "titulo": "Estágio PGE RS abre 32 vagas para pós-graduação com bolsa de R$ 2,8 mil",
-          "link": "https://example.com/c4", "uf": "RS", "ate": d(9), "vagas": "32 vagas", "salario": 2800.0,
-          "resumo": "", "escolaridade": "", "fonte": "Concursos no Brasil"},
-         "Estudantes de pós-graduação em Direito."),
-        ({**base, "orgao": "Prefeitura de Toropi", "titulo": "Câmara de Toropi abre vaga", "link": "https://example.com/c5",
-          "uf": "RS", "ate": d(3), "vagas": "1 vaga", "salario": 1654.47,
-          "resumo": "Agente de Serviços Complementares", "escolaridade": "Fundamental"}, ""),
-        ({**base, "orgao": "TJSC - Tribunal de Justiça do Estado de Santa Catarina", "titulo": "TJSC abre concurso para juiz",
-          "link": "https://example.com/c6", "uf": "SC", "ate": d(20), "vagas": "15 vagas", "salario": 35874.14,
-          "resumo": "Juiz Substituto", "escolaridade": "Superior"}, "Juiz Substituto"),
+          "fonte": "Concursos no Brasil"},
+         {"texto": "Grupo I: Administração\nGrupo III: Tecnologia da Informação\nVagas em Porto Alegre, Santa Maria e Ijuí.",
+          "edital": {"versao": VERSAO_EDITAL, "situacao": "sem pdf"}}),
+        ({**base, "orgao": "TJRS", "titulo": "Estágio TJRS em Santa Maria seleciona estudantes de Direito",
+          "link": "https://example.com/c4", "uf": "RS", "ate": d(9), "vagas": "10 vagas", "salario": 1200.0,
+          "fonte": "Concursos no Brasil"},
+         {"texto": "Estudantes de graduação em Direito. Vagas no Foro de Santa Maria.",
+          "edital": {"versao": VERSAO_EDITAL, "situacao": "bloqueado"}}),
+        ({**base, "orgao": "Prefeitura de Florestópolis", "titulo": "Prefeitura de Florestópolis - PR abre concurso",
+          "link": "https://example.com/c5", "uf": "PR", "ate": d(3), "vagas": "46 vagas", "salario": 15389.87,
+          "resumo": "Vários Cargos", "escolaridade": "Médio / Técnico / Superior"},
+         {"texto": "Nível médio\nAssistente Administrativo (CR)\nNível técnico\nTécnico de Informática (1 vaga + CR)\n"
+                   "Nível superior\nPsicólogo (1 vaga + CR)\nA remuneração varia de R$ 2.117,00 a R$ 15.389,87.",
+          "edital": {"versao": VERSAO_EDITAL, "situacao": "bloqueado"}}),
     ]
     agora_iso = agora.isoformat()
-    itens = [montar(c, texto, agora_iso, agora) for c, texto in lista]
+    itens = [montar(c, {"visto": agora_iso, **g}, agora) for c, g in lista]
     itens.sort(key=lambda x: (x["salario"] or 0), reverse=True)
-    return itens, {"PCI Concursos": "143 encontrados", "Concursos no Brasil": "46 encontrados"}
+    return itens, {"PCI Concursos": "152 encontrados", "Concursos no Brasil": "135 encontrados",
+                   "Editais": "3 encontrados de 5 (3 lido, 2 bloqueado)"}

@@ -5,19 +5,20 @@ Busca vagas no Indeed, LinkedIn, Glassdoor, Gupy, Vagas.com.br, Remotar, Trampos
 Na página:
 - **Vagas / Concursos**: as duas abas do topo.
 - **Perfil TI / Direito**: a chavinha ao lado troca o perfil das duas abas.
-  - **TI**: estágio e júnior em desenvolvimento, dados, suporte...
-  - **Direito**: formado em Direito, ainda sem OAB.
+  - **TI**: técnico em informática, cursando Sistemas de Informação. Vagas de estágio e júnior; concursos de técnico ou nível médio em TI e estágios de TI.
+  - **Direito**: cursando Direito, formatura em janeiro de 2027, sem OAB. Estágios de Direito e vagas jurídicas que não pedem diploma nem OAB.
 
 ## Arquivos
 
 | Arquivo | O que é |
 |---|---|
 | `vagas.py` | O coletor de vagas. A configuração (perfis, termos, cidades, empresas favoritas) fica no topo. |
-| `concursos.py` | O coletor de concursos. A configuração (estados, cargos que servem pra cada perfil) fica no topo. |
+| `concursos.py` | O coletor de concursos. Procura e lê o edital de cada concurso. A configuração (estados, cargos que servem pra cada perfil) fica no topo. |
+| `municipios.json` | Lista de municípios de RS, SC, PR e SP (IBGE), pra achar a cidade de cada concurso. |
 | `template.html` | O visual da página. |
 | `requirements.txt` | Bibliotecas Python. |
 | `.github/workflows/vagas.yml` | O agendamento no GitHub Actions. |
-| `docs/` | Criada automaticamente: a página publicada, o histórico de vagas já vistas e o texto dos editais já lidos (`concursos.json`). |
+| `docs/` | Criada automaticamente: a página publicada, o histórico de vagas já vistas e o que já foi lido de cada concurso e edital (`concursos.json`). |
 
 ## Configurar pelo celular (uma vez só)
 
@@ -59,16 +60,42 @@ Os concursos se ajustam no topo do `concursos.py`:
 - **Fora:** nível acima (pleno, sênior, N2/N3, liderança) ou fora de TI. Expressões como "redes sociais" ou "desenvolvimento de negócios" não contam como TI (lista `TITULO_NAO_TI`).
 - **Nova:** apareceu pela primeira vez nas últimas 24 horas.
 
-No perfil **Direito** (formado, sem OAB):
+No perfil **Direito** (cursando, formatura em jan/2027, sem OAB):
 
-- **Encaixa:** vaga da área jurídica (assistente/analista jurídico, contratos, licitações, paralegal...) que não pede OAB.
-- **Talvez:** a OAB aparece como diferencial ou sem dizer se é obrigatória, pede mais de 2 anos de experiência, ou é estágio de pós-graduação.
-- **Fora:** advogado/procurador, vaga que pede OAB ativa, estágio de graduação, nível acima ou fora da área jurídica.
+- **Encaixa:** estágio de Direito e vaga jurídica que não pede diploma nem OAB.
+- **Talvez:** pede faculdade concluída, a OAB aparece como diferencial ou sem dizer se é obrigatória, ou pede mais de 2 anos de experiência.
+- **Fora:** advogado/procurador, vaga que pede OAB, estágio de pós-graduação, nível acima ou fora da área jurídica.
 
-Nos **concursos**, o salário vem em destaque e a lista é ordenada por ele. Quando o edital não diz o salário de cada cargo, aparece o maior salário do edital ("até"). O selo segue o perfil:
+### Concursos: como o edital é lido
 
-- **TI:** encaixa quando o edital tem cargo de técnico ou nível superior em TI (técnico em informática, analista de sistemas, programador...) ou é estágio para estudante de TI. Professor e instrutor de informática ficam em "Talvez". Cargos só de nível fundamental/médio ficam em "Fora".
-- **Direito:** encaixa com analista/técnico judiciário, oficial de justiça, escrevente, cargos jurídicos sem OAB. Ficam em "Talvez" o assessor jurídico (às vezes pede OAB), as carreiras policiais, os cargos de controle interno e de fiscal, e o estágio de pós-graduação. Advogado, procurador, juiz e promotor ficam em "Fora".
+Pra cada concurso, o radar procura o edital em vários lugares e fica com o primeiro que for mesmo daquele órgão:
+
+1. As notícias do concurso no Concursos no Brasil, no Gran e no Estratégia (não só a da lista).
+2. O site da banca citado nessas notícias.
+3. O site da prefeitura ou da câmara (`cidade.rs.gov.br`).
+4. O Diário Oficial da União, nos concursos federais.
+
+Além disso, o radar visita os **sites oficiais** dos órgãos listados em `ORGAOS_OFICIAIS` (no topo do `concursos.py`): tribunais, ministérios públicos, universidades, institutos federais, Banrisul, prefeituras de Santa Maria e Porto Alegre etc. Pra não cair em fonte falsa ou desatualizada:
+
+- só conta como oficial o site de governo (`.gov.br`, `.jus.br`, `.mp.br`, `.leg.br`, `.mil.br`, `.def.br`, `.tc.br`, `.edu.br`) ou um dos domínios de `DOMINIOS_OFICIAIS`, sempre com HTTPS;
+- se o site do órgão mandar pra fora do governo, ele é ignorado;
+- de lá, o radar só segue links pra outros sites oficiais ou pras bancas de `BANCAS`;
+- só entra o concurso cujo edital mostra inscrição ainda aberta (editais antigos que continuam publicados ficam de fora);
+- quando o mesmo concurso veio das notícias, vale o edital do site oficial ("edital lido no site oficial").
+
+Os sites oficiais que só abrem com JavaScript (como o do STJ) são lidos com um navegador automatizado (Playwright). Páginas com verificação anti-robô não são contornadas.
+
+Do edital sai, pra cada cargo que interessa, a escolaridade exigida e o salário. O cartão mostra:
+
+- **O salário do cargo que serve pra você**, quando o edital (ou a notícia) diz. Quando não diz, aparece "salário do cargo não confirmado" e a faixa do edital em letra pequena. Os concursos com salário confirmado vêm primeiro.
+- **A cidade:** a da prefeitura/câmara ou as cidades de lotação que aparecem no edital (Santa Maria e Porto Alegre vêm na frente).
+- **Se o edital foi lido.** Algumas bancas (Objetiva e Fundatec, por exemplo) e o próprio PCI bloqueiam robôs; aí a classificação usa a notícia e o cartão avisa.
+
+Como fica cada perfil:
+
+- **TI:** encaixa quando o cargo é de técnico em informática ou de nível médio em TI, ou é estágio pra estudante de TI. Cargo de TI que pede faculdade concluída fica em "Talvez" (você ainda está cursando SI). Licenciatura (professor de informática) fica em "Fora".
+- **Direito:** encaixa estágio de Direito e cargo jurídico de nível médio (técnico judiciário, escrevente, quando pedem só ensino médio). Analista judiciário, oficial de justiça e outros que pedem faculdade concluída ficam em "Talvez": você se forma em jan/2027 e o diploma é cobrado na posse. Advogado, procurador, juiz, promotor e estágio de pós ficam em "Fora".
+- **"Concurso nº 001/2026"** é o número do edital (o primeiro daquele órgão em 2026), não a data. O que vale é o prazo de inscrição que aparece no cartão.
 - Concursos com inscrição encerrada somem sozinhos.
 
 ## Problemas comuns
