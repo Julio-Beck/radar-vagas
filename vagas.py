@@ -25,9 +25,10 @@ from pathlib import Path
 
 # Perfis: a chavinha no topo da página troca entre eles (vale pra vagas e concursos).
 PERFIS = {
-    "ti": "TI",           # estágio/júnior em desenvolvimento, dados, suporte...
-    "direito": "Direito",  # formado em Direito, ainda sem OAB
+    "ti": "TI",           # técnico em informática, cursando Sistemas de Informação
+    "direito": "Direito",  # cursando Direito, formatura em janeiro de 2027
 }
+FORMATURA_DIREITO = "jan/2027"
 
 # O que buscar nos sites de vagas. Cada termo vira uma busca local + uma remota.
 # Perfil TI:
@@ -44,17 +45,18 @@ TERMOS = [
     "analista de suporte júnior",
     "suporte técnico TI",
     "QA júnior",
+    "técnico em informática",
 ]
-# Perfil Direito (formado, sem OAB):
+# Perfil Direito (cursando, formatura em jan/2027):
 TERMOS_DIREITO = [
     "assistente jurídico",
     "analista jurídico",
     "auxiliar jurídico",
     "assessor jurídico",
-    "bacharel em direito",
+    "estágio direito",
     "paralegal",
     "analista de contratos",
-    "analista de licitações",
+    "estagiário jurídico",
 ]
 
 # Sites de carreira de empresas: cole o link da página "Trabalhe conosco".
@@ -120,7 +122,7 @@ ESTAGIO = [
     "trainee", "aprendiz", "intern", "internship",
 ]
 NIVEL_BOM = ESTAGIO + [
-    "junior", "jr", "assistente", "auxiliar", "iniciante", "nivel 1", "nivel i", "n1",
+    "junior", "jr", "assistente", "auxiliar", "iniciante", "nivel 1", "nivel i", "n1", "tecnico", "tecnica",
     "analista i", "entry level", "entry-level",
 ]
 NIVEL_RUIM = [
@@ -168,7 +170,7 @@ AREA_TI_DESCRICAO = [
     "analise de dados", "power bi", "javascript", "java", "linux",
 ]
 
-# --- Perfil Direito (formado, sem OAB) ---
+# --- Perfil Direito (cursando, formatura em jan/2027) ---
 # Palavras que dizem que a vaga é da área jurídica (procuradas no título).
 AREA_DIREITO = [
     "juridico", "juridica", "juridicos", "juridicas", "direito", "advocacia", "advocaticio",
@@ -180,7 +182,9 @@ AREA_DIREITO = [
 AREA_DIREITO_DESCRICAO = [
     "bacharel em direito", "bacharelado em direito", "formacao em direito", "graduacao em direito",
     "graduado em direito", "graduada em direito", "formado em direito", "formada em direito",
-    "superior completo em direito", "ciencias juridicas", "curso de direito",
+    "superior completo em direito", "ciencias juridicas", "curso de direito", "cursando direito",
+    "estudante de direito", "academico de direito", "academicos de direito", "graduando em direito",
+    "graduandos em direito",
 ]
 # Cargos que exigem OAB: caem em "Fora" no perfil Direito.
 CARGO_PEDE_OAB = ["advogado", "advogada", "advogados", "lawyer", "attorney", "counsel", "procurador", "procuradora"]
@@ -830,7 +834,7 @@ def situacao_oab(d):
 
 
 def classificar_direito(v):
-    """Perfil Direito: formado, sem OAB."""
+    """Perfil Direito: ainda cursando, formatura em FORMATURA_DIREITO, sem OAB."""
     t = norm(v["titulo"])
     d = norm(v["descricao"][:6000])
 
@@ -847,12 +851,17 @@ def classificar_direito(v):
 
     if tem(ESTAGIO_ESTUDANTE, t):
         if tem(POS_GRADUACAO, t + " " + d):
-            return "talvez", "Estágio de pós: pede matrícula numa pós-graduação"
-        return "descartada", "Estágio é pra quem ainda está na faculdade"
+            return "descartada", "Estágio de pós: é pra quem já se formou"
+        if re.search(r"(formatura|conclusao do curso|concluir o curso)[^.]{0,50}\b20(2[89]|3\d)\b", d):
+            return "talvez", f"Pede formatura mais tarde (você se forma em {FORMATURA_DIREITO})"
+        return "encaixa", "Estágio de Direito"
 
     oab = situacao_oab(d)
     if oab == "obrigatoria":
         return "descartada", "Pede OAB"
+    if (re.search(r"\b(bacharel|bacharelado|formad[oa]s?|graduad[oa]s?|superior completo|graduacao completa"
+                  r"|formacao completa)\b", d) and not re.search(r"cursando|em andamento|graduando|estudante", d)):
+        return "talvez", f"Pede faculdade concluída (você se forma em {FORMATURA_DIREITO})"
     anos = anos_pedidos(d)
     if anos > ANOS_EXPERIENCIA_MAX:
         return "talvez", f"Pede {anos} anos de experiência"
@@ -863,7 +872,7 @@ def classificar_direito(v):
     if tem(NIVEL_RUIM, t):
         return "talvez", "Aceita júnior, mas também cita nível acima"
     if area_titulo:
-        return "encaixa", "Área jurídica, sem exigir OAB"
+        return "encaixa", "Área jurídica, sem pedir OAB nem diploma"
     return "talvez", "A área jurídica só aparece na descrição"
 
 
