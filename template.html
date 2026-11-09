@@ -54,11 +54,23 @@
   .sub { margin-top: 6px; color: var(--muted); font-family: var(--mono); font-size: 12px; }
   .sub.atrasada { color: var(--maybe); }
   .busca {
-    display: block; width: 100%; margin-top: 16px; padding: 12px 14px;
+    display: block; width: 100%; margin-top: 12px; padding: 12px 14px;
     font: inherit; color: var(--text); background: var(--surface);
     border: 1px solid var(--line); border-radius: 0; outline: none;
   }
   .busca:focus { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+
+  /* abas (Vagas/Concursos) e perfil (TI/Direito) */
+  .controles { margin-top: 16px; display: grid; grid-template-columns: 1.4fr 1fr; gap: 8px; }
+  .controles .rotulo { display: block; margin-bottom: 4px; font-family: var(--mono); font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .alternar { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; border: 1px solid var(--line); background: var(--surface); }
+  .alternar button {
+    font: inherit; font-size: 14px; color: var(--text); background: transparent;
+    border: 0; border-radius: 0; min-height: 44px; padding: 0 8px; cursor: pointer;
+  }
+  .alternar button + button { border-left: 1px solid var(--line); }
+  .alternar button[aria-pressed="true"] { background: var(--text); color: var(--bg); font-weight: 600; }
+  .alternar button:focus-visible, .barra button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 
   .fontes { margin-top: 12px; font-family: var(--mono); font-size: 12px; color: var(--muted); }
   .fontes summary { cursor: pointer; padding: 4px 0; list-style: none; }
@@ -89,6 +101,15 @@
   .meta { margin-top: 8px; font-family: var(--mono); font-size: 12px; color: var(--muted); }
   .motivo { margin-top: 4px; font-size: 13px; color: var(--muted); text-wrap: pretty; }
 
+  /* concursos: o salário vem primeiro */
+  .salario { margin-top: 8px; font-family: var(--mono); font-size: 20px; font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; }
+  .salario small { display: block; font-family: var(--sans); font-size: 12px; font-weight: 400; color: var(--muted); letter-spacing: 0; }
+  .salario.sem { font-size: 15px; font-weight: 500; color: var(--muted); }
+  .cidade { margin-top: 2px; font-size: 14px; }
+  .cargos { margin-top: 6px; font-size: 13px; text-wrap: pretty; }
+  .cargos b { font-weight: 600; }
+  .fecha { color: var(--maybe); }
+
   .vazio { padding: 48px 0; color: var(--muted); text-wrap: pretty; }
   .vazio strong { display: block; color: var(--text); font-size: 17px; margin-bottom: 6px; }
 
@@ -116,7 +137,20 @@
   <header>
     <h1>Radar de Vagas</h1>
     <p class="sub" id="atualizado"></p>
-    <input class="busca" id="busca" type="search" placeholder="Filtrar por cargo, empresa ou cidade" aria-label="Filtrar vagas">
+    <div class="controles">
+      <div>
+        <span class="rotulo" id="rotulo-aba">Mostrar</span>
+        <div class="alternar" role="group" aria-labelledby="rotulo-aba">
+          <button type="button" data-aba="vagas">Vagas</button>
+          <button type="button" data-aba="concursos">Concursos</button>
+        </div>
+      </div>
+      <div id="caixa-perfil">
+        <span class="rotulo" id="rotulo-perfil">Perfil</span>
+        <div class="alternar" role="group" aria-labelledby="rotulo-perfil" id="perfis"></div>
+      </div>
+    </div>
+    <input class="busca" id="busca" type="search" placeholder="Filtrar por cargo, empresa ou cidade" aria-label="Filtrar">
     <details class="fontes" id="fontes"><summary></summary><ul></ul></details>
   </header>
   <main id="lista"></main>
@@ -143,11 +177,22 @@ const sem = s => String(s ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]
 function guardar(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
 function ler(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
 
+// páginas antigas não tinham perfis nem concursos
+DADOS.perfis = DADOS.perfis || { ti: "TI" };
+DADOS.concursos = DADOS.concursos || [];
+DADOS.fontesConcursos = DADOS.fontesConcursos || [];
+DADOS.vagas.forEach(v => { if (!v.perfis) v.perfis = { ti: [v.classe, v.motivo] }; });
+
+const PERFIS = Object.keys(DADOS.perfis);
 const estado = {
+  aba: ler("radar.aba") === "concursos" ? "concursos" : "vagas",
+  perfil: PERFIS.includes(ler("radar.perfil")) ? ler("radar.perfil") : PERFIS[0],
   classe: ler("radar.classe") || "encaixa",
   soNovas: ler("radar.novas") === "1",
   busca: "",
 };
+
+const UF_NOME = { RS: "Rio Grande do Sul", SC: "Santa Catarina", PR: "Paraná", SP: "São Paulo" };
 
 function diasAtras(iso) {
   if (!iso) return "";
@@ -159,6 +204,17 @@ function diasAtras(iso) {
   return `há ${n} dias`;
 }
 
+function prazo(iso) {
+  if (!iso) return "";
+  const [a, m, d] = iso.split("-").map(Number);
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+  const n = Math.round((new Date(a, m - 1, d) - hoje) / 864e5);
+  const data = `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}`;
+  if (n <= 0) return { texto: `inscrições até hoje (${data})`, perto: true };
+  if (n === 1) return { texto: `inscrições até amanhã (${data})`, perto: true };
+  return { texto: `inscrições até ${data} · faltam ${n} dias`, perto: n <= 3 };
+}
+
 function textoAtualizado(iso) {
   const t = new Date(iso);
   const hora = t.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
@@ -167,71 +223,159 @@ function textoAtualizado(iso) {
   const dia = t.toDateString() === hoje.toDateString() ? "hoje"
             : t.toDateString() === ontem.toDateString() ? "ontem"
             : t.toLocaleDateString("pt-BR");
-  return `Atualizado ${dia} às ${hora} · ${DADOS.vagas.length} vagas`;
+  const qtd = estado.aba === "vagas" ? `${itensDoPerfil().length} vagas` : `${itensDoPerfil().length} concursos`;
+  return `Atualizado ${dia} às ${hora} · ${qtd}`;
 }
 
-const fonteOk = f => /^\d+ encontradas/.test(f.status) && !/problema/.test(f.status);
+const fonteOk = f => /^\d+ encontrad/.test(f.status) && !/problema/.test(f.status);
+
+// itens da aba atual que valem pro perfil escolhido
+function itensDoPerfil() {
+  const lista = estado.aba === "vagas" ? DADOS.vagas : DADOS.concursos;
+  return lista.filter(x => x.perfis[estado.perfil]);
+}
+const classeDe = x => x.perfis[estado.perfil][0];
+const salarioDe = x => x.perfis[estado.perfil][3] || x.salario || 0;
 
 function cabecalho() {
   // a maior pausa normal entre buscas é de 12h (18h17 às 6h17)
   const atrasada = Date.now() - new Date(DADOS.atualizado) > 16 * 36e5;
   $("#atualizado").textContent = textoAtualizado(DADOS.atualizado) + (atrasada ? " · busca atrasada" : "");
   $("#atualizado").classList.toggle("atrasada", atrasada);
-  const ruins = DADOS.fontes.filter(f => !fonteOk(f));
+  const fontes = estado.aba === "vagas" ? DADOS.fontes : DADOS.fontesConcursos;
+  const ruins = fontes.filter(f => !fonteOk(f));
+  $("#fontes").hidden = !fontes.length;
   $("#fontes summary").textContent = ruins.length
-    ? `Fontes: ${DADOS.fontes.length - ruins.length} ok, ${ruins.length} com problema`
+    ? `Fontes: ${fontes.length - ruins.length} ok, ${ruins.length} com problema`
     : `Fontes: todas ok`;
-  $("#fontes ul").innerHTML = DADOS.fontes.map(f =>
+  $("#fontes ul").innerHTML = fontes.map(f =>
     `<li class="${fonteOk(f) ? "" : "ruim"}">${esc(f.nome)}: ${esc(f.status)}</li>`).join("");
+  $("#busca").placeholder = estado.aba === "vagas" ? "Filtrar por cargo, empresa ou cidade" : "Filtrar por órgão, cargo ou cidade";
+  document.querySelectorAll("[data-aba]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.aba === estado.aba)));
+  document.querySelectorAll("[data-perfil]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.perfil === estado.perfil)));
 }
 
 function filtradas() {
   const q = sem(estado.busca);
-  return DADOS.vagas.filter(v =>
-    (!estado.soNovas || v.nova) &&
-    (!q || sem(`${v.titulo} ${v.empresa} ${v.local}`).includes(q)));
+  return itensDoPerfil().filter(x => {
+    if (estado.soNovas && !x.nova) return false;
+    if (!q) return true;
+    const texto = estado.aba === "vagas"
+      ? `${x.titulo} ${x.empresa} ${x.local}`
+      : `${x.orgao} ${x.titulo} ${x.cidade} ${x.uf} ${UF_NOME[x.uf] || ""} ${x.perfis[estado.perfil][2].join(" ")}`;
+    return sem(texto).includes(q);
+  });
 }
 
-function cartao(v) {
+const ROTULO = { encaixa: "Encaixa", talvez: "Talvez", descartada: "Fora do perfil" };
+
+function cartaoVaga(v) {
+  const [classe, motivo] = v.perfis[estado.perfil];
   const jaDizRemoto = /remot|home office/i.test(v.local || "");
   const local = v.remoto && !jaDizRemoto ? (v.local ? `Remoto · ${v.local}` : "Remoto") : (v.local || "Local não informado");
   const meta = [local, v.fontes.join(", "), diasAtras(v.data)].filter(Boolean).join(" · ");
-  const rotulo = { encaixa: "Encaixa", talvez: "Talvez", descartada: "Fora do perfil" }[v.classe];
   return `<a class="vaga" href="${esc(v.link)}" target="_blank" rel="noopener">
     <div class="tags">
-      <span class="selo ${v.classe}">${rotulo}</span>
+      <span class="selo ${classe}">${ROTULO[classe]}</span>
       ${v.nova ? '<span class="nova">Nova</span>' : ""}
       ${v.favorita ? '<span class="fav">★ Favorita</span>' : ""}
     </div>
     <h2>${esc(v.titulo)}</h2>
     <p class="empresa">${esc(v.empresa || "Empresa não informada")}</p>
     <p class="meta">${esc(meta)}</p>
-    ${v.classe === "encaixa" ? "" : `<p class="motivo">${esc(v.motivo)}</p>`}
+    ${classe === "encaixa" ? "" : `<p class="motivo">${esc(motivo)}</p>`}
   </a>`;
 }
 
+function cartaoConcurso(c) {
+  const [classe, motivo, cargos, doCargo] = c.perfis[estado.perfil];
+  let salario;
+  if (doCargo) salario = `${brl(doCargo)}<small>salário do cargo</small>`;
+  else if (c.salario) {
+    // o edital costuma dar só a faixa: o maior salário pode ser de outro cargo
+    const nota = c.estagio ? "bolsa"
+               : c.salarioMin ? `maior salário do edital · os cargos pagam a partir de ${brl(c.salarioMin)}`
+               : "maior salário do edital · pode ser de outro cargo";
+    salario = `até ${esc(c.salarioTexto)}<small>${nota}</small>`;
+  }
+  const local = !c.uf ? "Nacional · vagas pelo país"
+              : c.cidade ? `${c.cidade}, ${c.uf}`
+              : `${UF_NOME[c.uf] || c.uf} · local no edital`;
+  const p = prazo(c.ate);
+  const meta = [c.vagas, c.escolaridade, c.fonte].filter(Boolean).join(" · ");
+  return `<a class="vaga concurso" href="${esc(c.link)}" target="_blank" rel="noopener">
+    <div class="tags">
+      <span class="selo ${classe}">${ROTULO[classe]}</span>
+      ${c.nova ? '<span class="nova">Novo</span>' : ""}
+      ${c.estagio ? '<span class="fav">Estágio</span>' : ""}
+    </div>
+    ${salario ? `<p class="salario">${salario}</p>` : '<p class="salario sem">Salário no edital</p>'}
+    <h2>${esc(c.orgao)}</h2>
+    <p class="cidade">${esc(local)}</p>
+    ${cargos.length ? `<p class="cargos"><b>${c.estagio ? "Cursos" : "Cargos"}:</b> ${esc(cargos.join(" · "))}</p>` : ""}
+    <p class="meta">${p ? `<span class="${p.perto ? "fecha" : ""}">${esc(p.texto)}</span> · ` : ""}${esc(meta)}</p>
+    ${classe === "encaixa" ? "" : `<p class="motivo">${esc(motivo)}</p>`}
+  </a>`;
+}
+
+const brl = n => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
 function vazio() {
-  if (!DADOS.vagas.length) return `<div class="vazio"><strong>Nenhuma vaga nesta rodada.</strong>Veja em "Fontes" se alguma está com problema. A próxima busca roda sozinha.</div>`;
-  if (estado.soNovas) return `<div class="vazio"><strong>Nada novo aqui nas últimas 24h.</strong>Toque em "Novas" para ver todas desta categoria.</div>`;
+  const nome = estado.aba === "vagas" ? "vaga" : "concurso";
+  if (!itensDoPerfil().length) {
+    return estado.aba === "vagas"
+      ? `<div class="vazio"><strong>Nenhuma vaga nesta rodada.</strong>Veja em "Fontes" se alguma está com problema. A próxima busca roda sozinha.</div>`
+      : `<div class="vazio"><strong>Nenhum concurso aberto encontrado.</strong>Veja em "Fontes" se alguma está com problema. A próxima busca roda sozinha.</div>`;
+  }
+  if (estado.soNovas) return `<div class="vazio"><strong>Nada novo aqui nas últimas 24h.</strong>Toque em "Novas" para ver tudo desta categoria.</div>`;
   if (estado.busca) return `<div class="vazio"><strong>Nada com "${esc(estado.busca)}".</strong>Tente outra palavra ou outra aba.</div>`;
-  if (estado.classe === "encaixa") return `<div class="vazio"><strong>Nenhuma vaga com encaixe certo agora.</strong>Dê uma olhada em "Talvez": costumam ser vagas boas que não dizem o nível no título.</div>`;
-  return `<div class="vazio"><strong>Nada nesta aba.</strong></div>`;
+  if (estado.classe === "encaixa") {
+    return estado.aba === "vagas"
+      ? `<div class="vazio"><strong>Nenhuma vaga com encaixe certo agora.</strong>Dê uma olhada em "Talvez": costumam ser vagas boas que não dizem o nível no título.</div>`
+      : `<div class="vazio"><strong>Nenhum concurso com encaixe certo agora.</strong>Dê uma olhada em "Talvez": são editais que podem servir, mas vale conferir os requisitos.</div>`;
+  }
+  return `<div class="vazio"><strong>Nenhum ${nome} nesta aba.</strong></div>`;
+}
+
+const PESO = { encaixa: 2, talvez: 1, descartada: 0 };
+function ordenar(lista) {
+  if (estado.aba === "concursos") {
+    // o salário é o que mais importa; empate: o que fecha antes
+    return lista.sort((a, b) => salarioDe(b) - salarioDe(a) || String(a.ate || "9").localeCompare(String(b.ate || "9")));
+  }
+  return lista.sort((a, b) =>
+    PESO[classeDe(b)] - PESO[classeDe(a)] || (b.favorita - a.favorita) || (b.nova - a.nova) ||
+    String(b.data || "").localeCompare(String(a.data || "")));
 }
 
 function render() {
+  cabecalho();
   const base = filtradas();
-  const visiveis = base.filter(v => v.classe === estado.classe);
+  const visiveis = ordenar(base.filter(x => classeDe(x) === estado.classe));
   document.querySelectorAll(".seg button").forEach(b => {
     const c = b.dataset.classe;
     b.setAttribute("aria-pressed", String(c === estado.classe));
-    $(".n", b).textContent = base.filter(v => v.classe === c).length;
+    $(".n", b).textContent = base.filter(x => classeDe(x) === c).length;
   });
   const btnNovas = $("#novas");
+  btnNovas.firstChild.textContent = estado.aba === "vagas" ? "Novas" : "Novos";
   btnNovas.setAttribute("aria-pressed", String(estado.soNovas));
-  $(".n", btnNovas).textContent = DADOS.vagas.filter(v => v.nova).length;
+  $(".n", btnNovas).textContent = itensDoPerfil().filter(x => x.nova).length;
+  const cartao = estado.aba === "vagas" ? cartaoVaga : cartaoConcurso;
   $("#lista").innerHTML = visiveis.length ? visiveis.map(cartao).join("") : vazio();
 }
 
+$("#perfis").innerHTML = PERFIS.map(p => `<button type="button" data-perfil="${esc(p)}">${esc(DADOS.perfis[p])}</button>`).join("");
+$("#caixa-perfil").hidden = PERFIS.length < 2;
+
+document.querySelectorAll("[data-aba]").forEach(b => b.addEventListener("click", () => {
+  estado.aba = b.dataset.aba; guardar("radar.aba", estado.aba);
+  render(); window.scrollTo(0, 0);
+}));
+document.querySelectorAll("[data-perfil]").forEach(b => b.addEventListener("click", () => {
+  estado.perfil = b.dataset.perfil; guardar("radar.perfil", estado.perfil);
+  render(); window.scrollTo(0, 0);
+}));
 document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => {
   estado.classe = b.dataset.classe; guardar("radar.classe", estado.classe);
   render(); window.scrollTo(0, 0);
@@ -241,7 +385,6 @@ $("#novas").addEventListener("click", () => {
 });
 $("#busca").addEventListener("input", e => { estado.busca = e.target.value.trim(); render(); });
 
-cabecalho();
 render();
 </script>
 </body>
