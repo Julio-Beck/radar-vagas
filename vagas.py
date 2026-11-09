@@ -999,6 +999,17 @@ def exemplo():
     return ti + direito
 
 
+def concursos_anteriores(pagina, agora):
+    """Concursos que estão na página publicada, sem os que já fecharam."""
+    try:
+        html = pagina.read_text(encoding="utf-8")
+        dados = json.loads(re.search(r"const DADOS = (\{.*?\});\n", html, re.S).group(1).replace("<\\/", "</"))
+        hoje = agora.date().isoformat()
+        return [c for c in dados.get("concursos", []) if not (c.get("ate") and c["ate"] < hoje)]
+    except Exception:
+        return []
+
+
 def main():
     demo = "--demo" in sys.argv
     pasta = BASE / ("demo" if demo else "docs")
@@ -1041,6 +1052,12 @@ def main():
             except Exception as e:  # um erro nos concursos não pode derrubar as vagas
                 status_concursos["Concursos"] = f"erro: {type(e).__name__}"
                 print(f"Concursos: erro {type(e).__name__}: {e}")
+            if not concursos:  # a coleta falhou: mantém os concursos da rodada anterior
+                anteriores = concursos_anteriores(pasta / "index.html", agora)
+                if anteriores:
+                    concursos = anteriores
+                    status_concursos["Concursos"] = (f"problema: a coleta falhou, mostrando {len(anteriores)} "
+                                                     f"da rodada anterior")
 
     vagas = tratar(brutas, vistas, agora)
     if not vagas:
