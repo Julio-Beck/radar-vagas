@@ -426,7 +426,9 @@ def achar_edital(s, links, alvo, max_buscas=12, aceita=None):
 
 def texto_do_pdf(corpo, paginas=45):
     import io
+    import logging
     from pypdf import PdfReader
+    logging.getLogger("pypdf").setLevel(logging.ERROR)  # avisos de fonte do PDF só poluem o log
     leitor = PdfReader(io.BytesIO(corpo))
     partes = []
     for pagina in leitor.pages[:paginas]:
@@ -707,36 +709,102 @@ def confiavel(url):
     return oficial(url) or (url.lower().startswith(("https://", "http://")) and no_dominio(dominio(url), BANCAS))
 
 
-PAGINA_DE_CONCURSOS = r"concurso|selec|seletivo|estagi|trabalhe (conosco|no|na)|oportunidades|editais|carreira"
-NAO_E_ABERTURA = r"resultado|homolog|gabarito|convoca|classifica|retifica|nomeac|recurso|cancelad|encerrad|suspens"
+PAGINA_DE_CONCURSOS = r"concurso|selec|seletivo|estagi|trabalhe (conosco|no|na)|oportunidades|carreira|servidor"
+# o que é emprego/estágio (e não vestibular, bolsa, pós-graduação, licitação...)
+EMPREGO = (r"concurso publico|concurso para|processo seletivo simplificado|selecao publica|estagi|residencia juridica"
+           r"|professor substituto|professor visitante|contratacao temporaria|tecnico.administrativo|servidor|cargos?\b"
+           r"|analista|tecnico judiciario")
+NAO_E_EMPREGO = (r"vestibular|ingresso discente|reingresso|transferencia|pos-graduacao|mestrado|doutorado|bolsista"
+                 r"|auxilio|eleitora|eleicao|subsequente|apoio financeiro|iniciacao|extensao|monitoria|intercambio"
+                 r"|premio|selo|credenciamento|licitac|pregao|chamamento|palestrante|voluntari|examinador|leilao|doacao")
+NAO_E_ABERTURA = r"resultado|homolog|gabarito|convoca|classifica|retifica|nomeac|recurso|cancelad|encerrad|suspens|decis"
+
+
+_NAVEGADOR = {}
+
+
+def renderizar(url):
+    """Abre a página num navegador de verdade (Playwright), pros sites oficiais que só montam o
+    conteúdo com JavaScript, como o portal do STJ. Não serve pra passar por bloqueio anti-robô:
+    página de verificação continua sendo tratada como bloqueio. -> (html, url final) ou None."""
+    try:
+        if "pagina" not in _NAVEGADOR:
+            import atexit
+            import os
+            from playwright.sync_api import sync_playwright
+            pw = sync_playwright().start()
+            try:
+                navegador = pw.chromium.launch()
+            except Exception:  # navegador já instalado na máquina (ex.: /opt/pw-browsers/chromium)
+                navegador = pw.chromium.launch(executable_path=os.environ.get("CHROMIUM", "/opt/pw-browsers/chromium"))
+            _NAVEGADOR["pagina"] = navegador.new_page(user_agent="Mozilla/5.0 (compatible; radar-vagas/1.0)")
+            atexit.register(lambda: (navegador.close(), pw.stop()))
+        pagina = _NAVEGADOR["pagina"]
+        pagina.goto(url, wait_until="networkidle", timeout=45000)
+        html = pagina.content()
+        if re.search(r"just a moment|challenges\.cloudflare|captcha", html[:5000], re.I):
+            return None
+        return html, pagina.url
+    except Exception as e:
+        print(f"  [navegador] {url}: {type(e).__name__}: {str(e)[:100]}")
+        return None
+
+
+def pagina_oficial(s, url):
+    """HTML da página; se vier quase sem links (montada por JavaScript), abre no navegador."""
+    corpo, _, final = baixar(s, url)
+    html = corpo.decode("utf-8", "replace")
+    html, final = seguir_refresh(s, html, final)
+    if len(re.findall(r"<a\b", html, re.I)) < 10:
+        renderizada = renderizar(final)
+        if renderizada:
+            html, final = renderizada
+    return html, final
+
+
+def seguir_refresh(s, html, base):
+    """Páginas que só redirecionam (<meta http-equiv="refresh">)."""
+    from urllib.parse import urljoin
+    m = re.search(r'http-equiv=["\']?refresh["\']?[^>]*url=([^"\'>\s]+)', html, re.I)
+    if m and len(html) < 3000:
+        corpo, _, final = baixar(s, urljoin(base, m.group(1)))
+        return corpo.decode("utf-8", "replace"), final
+    return html, base
 
 
 def links_de_concursos(s, site, ano):
-    """[(url, título)] de concursos/estágios do ano no site oficial (entra na página de concursos)."""
-    corpo, _, final = baixar(s, site)
+    """[(url, título)] de concursos/estágios no site oficial: entra nas páginas de concursos e estágios
+    (até 2 níveis) e fica com os links de edital/seleção de emprego, os do ano primeiro."""
+    html, final = pagina_oficial(s, site)
     if not oficial(final):
         raise ValueError(f"o site mandou pra fora do governo: {dominio(final)}")
-    html = corpo.decode("utf-8", "replace")
-    paginas = [final]
-    for u, t in links_da_pagina(html, final, contexto=False):
-        if oficial(u) and re.search(PAGINA_DE_CONCURSOS, norm(t)) and len(t) < 60 and u not in paginas:
-            paginas.append(u)
-    achados, vistos = [], set()
-    for pagina in paginas[:4]:
-        if pagina != final:
+    fila, paginas, achados, vistos = [(final, html, 0)], {final}, [], set()
+    while fila and len(paginas) <= 8:
+        pagina, html, nivel = fila.pop(0)
+        if html is None:
             try:
-                corpo, _, pagina = baixar(s, pagina)
-                html = corpo.decode("utf-8", "replace")
+                html, pagina = pagina_oficial(s, pagina)
             except Exception:
                 continue
-            time.sleep(0.4)
+            if not oficial(pagina):
+                continue
+            time.sleep(0.3)
         for u, t in links_da_pagina(html, pagina, contexto=False):
             n = norm(t + " " + u)
-            if (u in vistos or not confiavel(u) or not re.search(r"edital|concurso|seletivo|selecao|estagi", n)
-                    or str(ano) not in n or re.search(NAO_E_ABERTURA, n)):
-                continue
-            vistos.add(u)
-            achados.append((u, re.sub(r"\s+", " ", t).strip()[:140]))
+            if (nivel < 2 and oficial(u) and u not in paginas and len(t) < 70
+                    and re.search(PAGINA_DE_CONCURSOS, norm(t)) and not re.search(NAO_E_EMPREGO, n)
+                    and not parece_arquivo(u)):
+                paginas.add(u)
+                fila.append((u, None, nivel + 1))
+            if (u not in vistos and confiavel(u) and re.search(EMPREGO, n) and re.search(r"edital|concurso|seletiv|selecao|estagi", n)
+                    and not re.search(NAO_E_EMPREGO, n) and not re.search(NAO_E_ABERTURA, n) and len(t) > 12):
+                vistos.add(u)
+                achados.append((u, re.sub(r"\s+", " ", t).strip()[:140]))
+    def antigo(u, t):  # cita só anos que já passaram: concurso velho que segue publicado
+        anos = [int(a) for a in re.findall(r"(?<!\d)(20[0-4]\d)(?!\d)", t + " " + u)]
+        return bool(anos) and max(anos) < ano
+    achados = [x for x in achados if not antigo(*x)]
+    achados.sort(key=lambda x: str(ano) not in norm(x[1] + x[0]))  # os do ano primeiro
     return achados[:8]
 
 
@@ -806,8 +874,10 @@ def niveis_da_noticia(texto):
     nivel, saida = "", {}
     for linha in texto.split("\n"):
         l = norm(linha).strip(" :-–")
-        if len(l) <= 45 and re.match(r"^(cargos? de )?(nivel|ensino|escolaridade|formacao)?\s*"
-                                      r"(fundamental|medio|tecnico|superior)\b", l):
+        # só a linha que é o título do grupo ("Nível técnico", "Ensino Superior completo:"),
+        # não um cargo que começa com a mesma palavra ("Técnico Judiciário")
+        if re.fullmatch(r"(cargos? (de|para) )?(nivel|ensino|escolaridade|formacao)?\s*(fundamental|medio|tecnico|superior)"
+                        r"(\s*(/|e|ou)\s*(medio|tecnico|superior))?( completo| incompleto)?( \(.*\))?", l):
             nivel = next(n for n, p in NIVEIS if re.search(p, l))
             continue
         if len(l) > 120:
@@ -845,7 +915,8 @@ def avaliar_ti(nome, req, nivel):
     if re.search(r"professor|instrutor", n):
         return "talvez", "Professor/instrutor: costuma pedir licenciatura"
     if nivel in ("tecnico", "medio", "fundamental"):
-        return "encaixa", f"Cargo de nível {'técnico' if nivel == 'tecnico' else nivel}"
+        return "encaixa", {"tecnico": "Cargo de nível técnico", "medio": "Cargo de nível médio",
+                           "fundamental": "Cargo de nível fundamental"}[nivel]
     if nivel == "superior":
         return "talvez", "Costuma pedir faculdade concluída: você ainda está cursando SI"
     return "talvez", "Confira a escolaridade no edital"
@@ -853,6 +924,16 @@ def avaliar_ti(nome, req, nivel):
 
 def avaliar_direito(nome, req, nivel):
     """Você: cursando Direito, formatura em FORMATURA_DIREITO, sem OAB."""
+    classe, motivo = avaliar_direito_requisito(nome, req, nivel)
+    generico = next((m for p, m in CARGOS_DIREITO_TALVEZ if re.search(p, norm(nome))), None)
+    if generico and classe == "encaixa":  # controlador, fiscal, polícia...: não é cargo jurídico
+        return "talvez", generico
+    if generico and classe == "talvez":
+        return "talvez", f"{generico}. {motivo}"
+    return classe, motivo
+
+
+def avaliar_direito_requisito(nome, req, nivel):
     n, r = norm(nome), norm(req)
     for padrao, motivo in CARGOS_DIREITO_FORA:
         if re.search(padrao, n):
@@ -968,6 +1049,8 @@ MUNICIPIOS = carregar_municipios()
 
 
 def cidades_no_texto(texto, uf):
+    # "Rio Grande do Sul" não é a cidade de Rio Grande, nem "Estado de São Paulo" a capital
+    texto = re.sub(r"Rio Grande do (Sul|Norte)|Estado d[eo] (São Paulo|Paraná|Santa Catarina)", " ", texto)
     contagem = {}
     for nome in MUNICIPIOS.get(uf, []):
         if nome in COMUNS or len(nome) < 4:

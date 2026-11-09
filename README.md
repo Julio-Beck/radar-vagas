@@ -75,6 +75,16 @@ Pra cada concurso, o radar procura o edital em vários lugares e fica com o prim
 3. O site da prefeitura ou da câmara (`cidade.rs.gov.br`).
 4. O Diário Oficial da União, nos concursos federais.
 
+Além disso, o radar visita os **sites oficiais** dos órgãos listados em `ORGAOS_OFICIAIS` (no topo do `concursos.py`): tribunais, ministérios públicos, universidades, institutos federais, Banrisul, prefeituras de Santa Maria e Porto Alegre etc. Pra não cair em fonte falsa ou desatualizada:
+
+- só conta como oficial o site de governo (`.gov.br`, `.jus.br`, `.mp.br`, `.leg.br`, `.mil.br`, `.def.br`, `.tc.br`, `.edu.br`) ou um dos domínios de `DOMINIOS_OFICIAIS`, sempre com HTTPS;
+- se o site do órgão mandar pra fora do governo, ele é ignorado;
+- de lá, o radar só segue links pra outros sites oficiais ou pras bancas de `BANCAS`;
+- só entra o concurso cujo edital mostra inscrição ainda aberta (editais antigos que continuam publicados ficam de fora);
+- quando o mesmo concurso veio das notícias, vale o edital do site oficial ("edital lido no site oficial").
+
+Os sites oficiais que só abrem com JavaScript (como o do STJ) são lidos com um navegador automatizado (Playwright). Páginas com verificação anti-robô não são contornadas.
+
 Do edital sai, pra cada cargo que interessa, a escolaridade exigida e o salário. O cartão mostra:
 
 - **O salário do cargo que serve pra você**, quando o edital (ou a notícia) diz. Quando não diz, aparece "salário do cargo não confirmado" e a faixa do edital em letra pequena. Os concursos com salário confirmado vêm primeiro.
