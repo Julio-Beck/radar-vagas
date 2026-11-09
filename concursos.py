@@ -67,7 +67,7 @@ ORGAOS_OFICIAIS = [
     ("UFPel", "https://portal.ufpel.edu.br", "RS", "Pelotas"),
     ("FURG", "https://www.furg.br", "RS", "Rio Grande"),
     ("Unipampa", "https://unipampa.edu.br", "RS", ""),
-    ("UFCSPA", "https://ufcspa.edu.br", "RS", "Porto Alegre"),
+    ("UFCSPA", "https://www.ufcspa.edu.br", "RS", "Porto Alegre"),
     ("IFRS", "https://ifrs.edu.br", "RS", ""),
     ("IF Farroupilha", "https://www.iffarroupilha.edu.br", "RS", ""),
     ("IFSul", "https://www.ifsul.edu.br", "RS", ""),
