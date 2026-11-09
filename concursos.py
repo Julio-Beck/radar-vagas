@@ -67,7 +67,7 @@ ORGAOS_OFICIAIS = [
     ("UFPel", "https://portal.ufpel.edu.br", "RS", "Pelotas"),
     ("FURG", "https://www.furg.br", "RS", "Rio Grande"),
     ("Unipampa", "https://unipampa.edu.br", "RS", ""),
-    ("UFCSPA", "https://ufcspa.edu.br", "RS", "Porto Alegre"),
+    ("UFCSPA", "https://www.ufcspa.edu.br", "RS", "Porto Alegre"),
     ("IFRS", "https://ifrs.edu.br", "RS", ""),
     ("IF Farroupilha", "https://www.iffarroupilha.edu.br", "RS", ""),
     ("IFSul", "https://www.ifsul.edu.br", "RS", ""),
@@ -740,7 +740,13 @@ def renderizar(url):
             _NAVEGADOR["pagina"] = navegador.new_page(user_agent="Mozilla/5.0 (compatible; radar-vagas/1.0)")
             atexit.register(lambda: (navegador.close(), pw.stop()))
         pagina = _NAVEGADOR["pagina"]
-        pagina.goto(url, wait_until="networkidle", timeout=45000)
+        # "networkidle" nunca chega em portais que ficam carregando coisas (STJ): espera o HTML e mais um pouco
+        pagina.goto(url, wait_until="domcontentloaded", timeout=30000)
+        try:
+            pagina.wait_for_load_state("load", timeout=10000)
+        except Exception:
+            pass
+        pagina.wait_for_timeout(2500)
         html = pagina.content()
         if re.search(r"just a moment|challenges\.cloudflare|captcha", html[:5000], re.I):
             return None
@@ -1169,16 +1175,22 @@ def coletar(status, agora, pasta):
         situacao = (g.get("edital") or {}).get("situacao", "sem link")
         situacoes[situacao] = situacoes.get(situacao, 0) + 1
         novos[c["link"]] = g
+    # guarda já o que foi lido: se algo der errado daqui pra frente, a próxima rodada não começa do zero
+    arquivo.parent.mkdir(parents=True, exist_ok=True)
+    arquivo.write_text(json.dumps(novos, ensure_ascii=False, indent=0), encoding="utf-8")
+
     # sites oficiais: o edital deles vale mais que o achado pelas notícias
     try:
         oficiais, status["Sites oficiais"] = coletar_oficiais(s, guardados, novos, agora)
     except Exception as e:
         oficiais = []
         status["Sites oficiais"] = f"erro: {type(e).__name__}"
+    guardado = lambda c: novos.get(c["link"]) or novos.get("oficial:" + c["link"]) or {"visto": agora.isoformat()}
     for c, chave in oficiais:
         g = novos[chave]
-        par = next((a for a in abertos if a["uf"] == c["uf"] and e_estagio(a) == e_estagio(c)
-                    and chaves(a) & chaves(c)), None)
+        # só junta com concurso que veio das notícias (dois editais do mesmo órgão no site oficial são dois concursos)
+        par = next((a for a in abertos if not a.get("oficial") and a["uf"] == c["uf"]
+                    and e_estagio(a) == e_estagio(c) and chaves(a) & chaves(c)), None)
         if par and (novos[par["link"]].get("edital") or {}).get("situacao") != "lido":
             novos[par["link"]]["edital"] = g["edital"]  # o mesmo concurso: usa o edital do site oficial
             par["fonte"] += " + site oficial"
@@ -1187,12 +1199,19 @@ def coletar(status, agora, pasta):
             abertos.append(c)
             situacoes["lido"] = situacoes.get("lido", 0) + 1
 
-    saida = []
+    saida, erros = [], 0
     for c in abertos:
-        item = montar(c, novos.get(c["link"]) or novos["oficial:" + c["link"]], agora)
+        try:
+            item = montar(c, guardado(c), agora)
+        except Exception as e:  # um concurso com problema não derruba a aba inteira
+            erros += 1
+            print(f"  [montar] {c.get('link')}: {type(e).__name__}: {str(e)[:120]}")
+            continue
         if item["ate"] and item["ate"] < hoje.isoformat():
             continue  # inscrições já fecharam
         saida.append(item)
+    if erros:
+        status["Concursos com erro"] = f"problema: {erros} não puderam ser montados"
     resumo = ", ".join(f"{q} {n}" for n, q in sorted(situacoes.items(), key=lambda x: -x[1]))
     status["Editais"] = f"{situacoes.get('lido', 0)} encontrados de {len(abertos)} ({resumo})"
     print(f"Concursos: {len(saida)} abertos, {lidos} editais procurados agora. Editais: {resumo}")
