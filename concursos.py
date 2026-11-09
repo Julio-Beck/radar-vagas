@@ -15,7 +15,7 @@ import time
 import unicodedata
 from datetime import date, datetime, timedelta
 
-from vagas import FUSO, norm, sessao, tem
+from vagas import norm, sessao, tem
 
 # =====================================================================
 # CONFIGURAÇÃO
